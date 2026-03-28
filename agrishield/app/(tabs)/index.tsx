@@ -12,13 +12,29 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { RiskBar } from "@/components/RiskBar";
 import { ActionCard } from "@/components/ActionCard";
+import { MARKET_DATA, getLatestPrice, formatPrice } from "@/data/marketData";
 
 const C = Colors.light;
+
+// Get a representative price from market data (first item with prices)
+function getMarketPrice() {
+  const item = MARKET_DATA.find((m) => m.prices.length > 0);
+  if (!item) return { price: "9,200", sub: "မန္တလေး · ပိဿာ" };
+
+  const latest = getLatestPrice(item);
+  if (!latest || !latest.high) return { price: "9,200", sub: "မန္တလေး · ပိဿာ" };
+
+  const priceStr = formatPrice(latest.high);
+  const details = item.item_details.split("-")[0]?.trim() || item.item_category || "ဈေးနှုန်း";
+
+  return { price: priceStr, sub: details };
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const marketInfo = getMarketPrice();
 
   return (
     <ScrollView
@@ -56,8 +72,8 @@ export default function HomeScreen() {
         >
           <View style={[styles.modDot, { backgroundColor: C.blue }]} />
           <Text style={styles.modLabel}>ဈေးနှုန်း</Text>
-          <Text style={[styles.modVal, { color: C.blue }]}>9,200</Text>
-          <Text style={styles.modSub}>မန္တလေး · ပိဿာ</Text>
+          <Text style={[styles.modVal, { color: C.blue }]}>{marketInfo.price}</Text>
+          <Text style={styles.modSub}>{marketInfo.sub}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

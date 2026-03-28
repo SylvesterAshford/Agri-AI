@@ -29,6 +29,7 @@ export default {
     red: "#E24B4A",
     redLight: "#FCEBEB",
     redDark: "#A32D2D",
+    redDeep: "#8B1E1E",
 
     amber: "#EF9F27",
     amberLight: "#FAEEDA",
