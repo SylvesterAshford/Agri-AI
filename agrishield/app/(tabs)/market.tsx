@@ -114,11 +114,12 @@ export default function MarketScreen() {
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     const range = maxPrice - minPrice || 1;
-    const chartWidth = width - 60;
-    const pointSpacing = chartWidth / (prices.length - 1);
+    const chartWidth = showLabels ? width - 110 : width - 70;
+    const paddingX = 8;
+    const pointSpacing = (chartWidth - paddingX * 2) / (prices.length - 1);
 
     const points = prices.map((price, i) => ({
-      x: i * pointSpacing,
+      x: i * pointSpacing + paddingX,
       y: height - ((price - minPrice) / range) * (height - 20) - 10,
       price,
       date: item.prices[i].date,
@@ -143,7 +144,7 @@ export default function MarketScreen() {
               </LinearGradient>
             </Defs>
             <Path
-              d={`${pathD} L ${points[points.length - 1].x} ${height} L 0 ${height} Z`}
+              d={`${pathD} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`}
               fill="url(#priceGradient)"
             />
             <Path
@@ -316,10 +317,11 @@ export default function MarketScreen() {
               const range = maxPrice - minPrice || 1;
               const chartHeight = 40;
               const chartWidth = (width - 60) / 4 - 10;
-              const pointSpacing = chartWidth / (prices.length - 1);
+              const paddingX = 4;
+              const pointSpacing = (chartWidth - paddingX * 2) / (prices.length - 1);
 
               const points = prices.map((price, j) => ({
-                x: j * pointSpacing,
+                x: j * pointSpacing + paddingX,
                 y: chartHeight - ((price - minPrice) / range) * (chartHeight - 10) - 5,
               }));
 
