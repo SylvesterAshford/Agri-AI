@@ -21,6 +21,7 @@ export default {
     blue: "#185FA5",
     blueLight: "#E6F1FB",
     blueMedium: "#378ADD",
+    blueDark: "#0C447C",
 
     purple: "#534AB7",
     purpleLight: "#EEEDFE",
@@ -30,6 +31,7 @@ export default {
     redLight: "#FCEBEB",
     redDark: "#A32D2D",
     redDeep: "#8B1E1E",
+    textTertiary: "#999",
 
     amber: "#EF9F27",
     amberLight: "#FAEEDA",

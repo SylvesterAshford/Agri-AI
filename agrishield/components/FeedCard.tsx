@@ -26,9 +26,10 @@ export interface FeedPost {
 
 interface FeedCardProps {
   post: FeedPost;
+  onHelpful?: () => void;
 }
 
-export function FeedCard({ post }: FeedCardProps) {
+export function FeedCard({ post, onHelpful }: FeedCardProps) {
   return (
     <View
       style={[
@@ -93,7 +94,7 @@ export function FeedCard({ post }: FeedCardProps) {
         </View>
       )}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn}>
+        <TouchableOpacity style={styles.actionBtn} onPress={onHelpful}>
           <Text style={styles.actionText}>အသုံးဝင် {post.helpful ? `(${post.helpful})` : ""}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn}>
@@ -143,6 +144,8 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 11,
+    lineHeight: 20,
+    paddingTop: 2,
     fontWeight: "700",
   },
   authorInfo: {
@@ -156,7 +159,8 @@ const styles = StyleSheet.create({
   },
   authorName: {
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 28,
+    paddingTop: 4,
     fontWeight: "600",
     color: C.text,
   },
@@ -167,10 +171,14 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 9,
+    lineHeight: 16,
+    paddingTop: 2,
     fontWeight: "600",
   },
   authorMeta: {
     fontSize: 10,
+    lineHeight: 18,
+    paddingTop: 2,
     color: C.textSecondary,
     marginTop: 1,
   },
