@@ -28,6 +28,7 @@ const RagRequestSchema = z.object({
   category: z.enum(['fertilizer', 'disaster', 'seed', 'soil']),
   postType: z.enum(['report', 'question', 'tip']),
   imageUrl: z.string().optional(),
+  imageBase64: z.string().optional(),
 });
 
 export interface SourceDocument {
@@ -113,13 +114,14 @@ async function retrieveFromRag(queryText: string): Promise<SourceDocument[]> {
 }
 
 /**
- * Generate response using Gemini with retrieved context
+ * Generate response using Gemini with retrieved context and optional image
  */
 async function generateResponse(
   queryText: string,
   category: string,
   postType: string,
-  documents: SourceDocument[]
+  documents: SourceDocument[],
+  imageBase64?: string
 ): Promise<string> {
   try {
     const auth = getAuth();
@@ -144,7 +146,64 @@ async function generateResponse(
       tip: 'အကြံပြုချက်',
     };
 
-    const prompt = `
+    const hasImage = !!imageBase64;
+
+    // Build the prompt based on whether we have an image
+    let prompt: string;
+    let parts: any[];
+
+    if (hasImage) {
+      // Image analysis prompt
+      prompt = `
+You are an agricultural expert assistant for Myanmar farmers. You are analyzing an image of a crop/pest/disease along with a farmer's question.
+
+IMPORTANT INSTRUCTIONS:
+1. First, carefully analyze the image to identify:
+   - What crop/plant is shown
+   - Any visible signs of pests, diseases, or nutrient deficiencies
+   - Leaf color, spots, wilting, or other symptoms
+   - Overall plant health condition
+
+2. Then read the farmer's question and provide specific advice based on BOTH the image and their question.
+
+3. Respond ONLY in Burmese language.
+
+4. Your response should include:
+   - What you observe in the image (symptoms, signs)
+   - Your diagnosis/assessment
+   - Specific treatment or action recommendations
+   - Prevention tips if applicable
+
+5. Be encouraging and supportive.
+
+Respond in Burmese with this structure:
+- ဂုဏ်ယူစွာဖြင့် မင်္ဂလာပါ (friendly greeting)
+- ဓာတ်ပုံတွင် တွေ့ရှိရသော အခြေအနေ (what you see in the image)
+- ဖြစ်နိုင်သော ပြဿနာ (likely problem/diagnosis)
+- ကုသရေး နည်းလမ်းများ (treatment recommendations)
+- ကာကွယ်ရေး နည်းလမ်းများ (prevention tips)
+- အားပေးစကား (encouragement)
+`.trim();
+
+      parts = [
+        { text: prompt },
+        {
+          inline_data: {
+            mime_type: 'image/jpeg',
+            data: imageBase64,
+          },
+        },
+        { text: `Farmer's question: ${queryText}` },
+        { text: `Category: ${categoryLabels[category]} - ${category}` },
+        { text: `Post type: ${postTypeLabels[postType]} - ${postType}` },
+      ];
+
+      if (contextText) {
+        parts.push({ text: `Reference knowledge: ${contextText}` });
+      }
+    } else {
+      // Text-only prompt
+      prompt = `
 You are an agricultural expert assistant for Myanmar farmers.
 Respond ONLY in Burmese language.
 
@@ -172,18 +231,21 @@ RESPONSE FORMAT:
 Respond in Burmese:
 `.trim();
 
+      parts = [{ text: prompt }];
+    }
+
     const requestBody = {
       contents: [
         {
           role: 'user',
-          parts: [{ text: prompt }],
+          parts: parts,
         },
       ],
       generationConfig: {
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
       },
       safetySettings: [
         {
@@ -281,6 +343,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = RagRequestSchema.parse(body);
 
+    console.log('[RAG API] Received request:', {
+      text: validated.text.substring(0, 50) + '...',
+      category: validated.category,
+      postType: validated.postType,
+      hasImage: !!validated.imageBase64,
+      imageBase64Length: validated.imageBase64?.length || 0,
+    });
+
     // Step 1: Retrieve from RAG corpus
     const documents = await retrieveFromRag(validated.text);
     console.log(`[DEBUG] Retrieved ${documents.length} documents from RAG corpus`);
@@ -288,22 +358,32 @@ export async function POST(request: Request) {
       console.log(`[DEBUG] Top document: ${documents[0].title} (Score: ${documents[0].relevanceScore})`);
     }
 
-    // Step 2: Generate response
+    // Step 2: Generate response with optional image
+    console.log('[RAG API] Calling Gemini with image:', !!validated.imageBase64);
     const answer = await generateResponse(
       validated.text,
       validated.category,
       validated.postType,
-      documents
+      documents,
+      validated.imageBase64
     );
+    console.log('[RAG API] Gemini response received, length:', answer.length);
 
-    // Calculate confidence
+    // Calculate confidence (boost when image is provided)
     const avgRelevance = documents.length > 0
       ? documents.reduce((sum, doc) => sum + doc.relevanceScore, 0) / documents.length
       : 0.5;
 
+    // Boost confidence by 15% when image is provided (max 95%)
+    let confidence = Math.round(avgRelevance * 100);
+    if (validated.imageBase64) {
+      confidence = Math.min(95, Math.round(confidence * 1.15));
+      console.log('[RAG API] Image detected, boosted confidence to:', confidence);
+    }
+
     const response: RagResponse = {
       answer,
-      confidence: Math.round(avgRelevance * 100),
+      confidence,
       sources: documents,
     };
 
@@ -314,9 +394,10 @@ export async function POST(request: Request) {
     // Return fallback response
     const body = await request.json().catch(() => ({ category: 'fertilizer' }));
 
+    const hasImage = body.imageBase64 || body.imageUrl;
     return Response.json({
       answer: getFallbackResponse(body.category || 'fertilizer'),
-      confidence: 50,
+      confidence: hasImage ? 65 : 50,
       sources: [],
       isFallback: true,
     });

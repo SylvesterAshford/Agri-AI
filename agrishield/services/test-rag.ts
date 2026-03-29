@@ -4,12 +4,13 @@ async function testRag() {
   console.log('Starting RAG test...');
   try {
     const result = await queryRagCorpus({
-      text: 'ပဲစိုက်ပျိုးရာတွင် အကောင်းဆုံး ဓာတ်မြေဩဇာက ဘာလဲ?', // "What is the best fertilizer for growing beans/groundnuts?"
+      text: 'အရွက်တွေဝါနေပါတယ် အကူအညီပေးပါ။', // "Leaves are turning yellow, please help."
       category: 'fertilizer',
-      postType: 'question'
+      postType: 'question',
+      imageBase64: 'fake-base64-image-string'
     });
     
-    console.log('--- RAG Test Result ---');
+    console.log('--- RAG Test Result (With Image) ---');
     console.log(JSON.stringify(result, null, 2));
     
     if (result.sources && result.sources.length === 0 && result.confidence === 50) {

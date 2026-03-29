@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 
@@ -40,6 +40,7 @@ export interface FeedPost {
   aiChip?: { label: string; text: string; conf: string };
   loopBar?: string;
   comments?: Comment[];
+  images?: { uri: string; type: string }[];
 }
 
 interface FeedCardProps {
@@ -97,6 +98,19 @@ export function FeedCard({ post, onHelpful, onComment, onShare }: FeedCardProps)
         </View>
 
         <Text style={styles.body}>{post.body}</Text>
+
+        {/* Post Images */}
+        {post.images && post.images.length > 0 && (
+          <View style={styles.imagesContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.imagesRow}>
+                {post.images.map((img, index) => (
+                  <Image key={index} source={{ uri: img.uri }} style={styles.postImage} />
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
 
         <View style={styles.tagRow}>
           {post.tags.map((tag, i) => (
@@ -330,6 +344,19 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     paddingVertical: 5,
     marginBottom: 10,
+  },
+  imagesContainer: {
+    marginBottom: 10,
+  },
+  imagesRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  postImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 10,
+    marginRight: 8,
   },
   tagRow: {
     flexDirection: "row",

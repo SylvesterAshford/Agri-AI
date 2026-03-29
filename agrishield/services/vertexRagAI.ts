@@ -10,6 +10,7 @@ export interface RagQuery {
   category: 'fertilizer' | 'disaster' | 'seed' | 'soil';
   postType: 'report' | 'question' | 'tip';
   imageUrl?: string;
+  imageBase64?: string;
 }
 
 export interface SourceDocument {
@@ -23,7 +24,6 @@ export interface RagResponse {
   answer: string;
   confidence: number;
   sources: SourceDocument[];
-  isFallback?: boolean;
 }
 
 /**
@@ -107,6 +107,5 @@ function getFallbackResponse(query: RagQuery): RagResponse {
     answer: fallbackResponses[query.category] || fallbackResponses.fertilizer,
     confidence: 50,
     sources: [],
-    isFallback: true,
   };
 }

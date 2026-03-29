@@ -10,9 +10,11 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { FeedCard, FeedPost, Comment } from "@/components/FeedCard";
 import { queryRagCorpus, RagQuery } from "@/services/vertexRagAI";
@@ -336,8 +338,73 @@ function ComposeModal({ visible, onClose, onSubmit, onAddAiReply }: ComposeModal
   const [category, setCategory] = useState<PostType>("fertilizer");
   const [text, setText] = useState("");
   const [autoTags, setAutoTags] = useState<{ label: string; bg: string; color: string }[]>([]);
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedImages, setSelectedImages] = useState<{ uri: string; type: string; base64?: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const pickImage = async (fromCamera: boolean) => {
+    try {
+      let result;
+      if (fromCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('ခွင့်ပြုချက်လိုအပ်', 'ကင်မရာကို အသုံးပြုရန် ခွင့်ပြုချက်ပေးပါ');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+          base64: true,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('ခွင့်ပြုချက်လိုအပ်', 'ဓာတ်ပုံများကို ရယူရန် ခွင့်ပြုချက်ပေးပါ');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+          base64: true,
+        });
+      }
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setSelectedImages(prev => [...prev, {
+          uri: asset.uri,
+          type: fromCamera ? 'camera' : 'library',
+          base64: asset.base64,
+        }]);
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('အမှား', 'ဓာတ်ပုံ ရယူရာတွင် အမှားဖြစ်ပွား');
+    }
+  };
+
+  const imageToBase64 = async (uri: string): Promise<string> => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64 = result.split(',')[1] || result;
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Image to base64 error:', error);
+      return '';
+    }
+  };
 
   const simulateAutoTag = (inputText: string) => {
     const tags: { label: string; bg: string; color: string }[] = [];
@@ -404,17 +471,33 @@ function ComposeModal({ visible, onClose, onSubmit, onAddAiReply }: ComposeModal
       body: text,
       tags,
       alertText: postType === "report" ? "ညောင်ဦး တောင်သူများကို သတိပေးချက် ပေးပို့မည်" : undefined,
+      images: selectedImages.length > 0 ? selectedImages : undefined,
     };
 
     // Submit user post first
     const submittedPost = onSubmit(newPost);
 
-    // Query Vertex AI RAG for response (in background)
+    // Query Vertex AI RAG for response with image analysis (in background)
     try {
+      let imageBase64: string | undefined = undefined;
+
+      // Convert first image to base64 for AI analysis
+      if (selectedImages.length > 0 && selectedImages[0].base64) {
+        // ImagePicker already provides base64, use it directly
+        imageBase64 = selectedImages[0].base64;
+        console.log('[DEBUG] Using base64 from ImagePicker, length:', imageBase64.length);
+      } else if (selectedImages.length > 0 && selectedImages[0].uri) {
+        // Fallback: convert URI to base64
+        imageBase64 = await imageToBase64(selectedImages[0].uri);
+        console.log('[DEBUG] Converted URI to base64, length:', imageBase64.length);
+      }
+
       const ragQuery: RagQuery = {
         text: text,
         category: category as any,
         postType: postType as any,
+        imageBase64: imageBase64,
+        imageUrl: selectedImages.length > 0 ? selectedImages[0].uri : undefined,
       };
 
       const aiResponse = await queryRagCorpus(ragQuery);
@@ -534,15 +617,13 @@ function ComposeModal({ visible, onClose, onSubmit, onAddAiReply }: ComposeModal
               <View style={styles.composeSection}>
                 <View style={styles.composeSectionHeader}>
                   <Feather name="image" size={14} color={C.textSecondary} />
-                  <Text style={styles.composeSectionTitleSmall}>ဓာတ်ပုံများ</Text>
+                  <Text style={styles.composeSectionTitleSmall}>ဓာတ်ပုံများ ({selectedImages.length})</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={styles.imagePreviewRow}>
                     {selectedImages.map((img, i) => (
                       <View key={i} style={styles.imagePreviewItem}>
-                        <View style={styles.imagePreview}>
-                          <Feather name="image" size={24} color={C.textSecondary} />
-                        </View>
+                        <Image source={{ uri: img.uri }} style={styles.imagePreview} />
                         <TouchableOpacity
                           style={styles.removeImageBtn}
                           onPress={() => setSelectedImages(selectedImages.filter((_, idx) => idx !== i))}
@@ -562,14 +643,24 @@ function ComposeModal({ visible, onClose, onSubmit, onAddAiReply }: ComposeModal
             <View style={styles.attachRowFull}>
               <TouchableOpacity
                 style={styles.attachBtnFull}
-                onPress={() => setSelectedImages([...selectedImages, `image-${Date.now()}`])}
+                onPress={() => {
+                  Alert.alert(
+                    'ဓာတ်ပုံ ရွေးမည်',
+                    'အောက်ပါနည်းလမ်းများမှ ရွေးချယ်ပါ',
+                    [
+                      { text: 'ကင်မရာ', onPress: () => pickImage(true) },
+                      { text: 'ဂယ်လရီ', onPress: () => pickImage(false) },
+                      { text: 'ပယ်ဖျက်', style: 'cancel' },
+                    ]
+                  );
+                }}
               >
                 <Feather name="camera" size={18} color={C.text} />
                 <Text style={styles.attachTextFull}>ဓာတ်ပုံ</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.attachBtnFull}>
-                <Feather name="mic" size={18} color={C.text} />
-                <Text style={styles.attachTextFull}>အသံ</Text>
+              <TouchableOpacity style={[styles.attachBtnFull, { opacity: 0.5 }]} disabled>
+                <Feather name="mic" size={18} color={C.textSecondary} />
+                <Text style={[styles.attachTextFull, { color: C.textSecondary }]}>အသံ</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -700,13 +791,14 @@ export default function KnowledgeScreen() {
     return result;
   }, [posts, activeFilter, postTypeFilter, sortMode, scope]);
 
-  const handleNewPost = (newPostData: Omit<FeedPost, "id" | "avatarText" | "avatarColor" | "avatarTextColor">) => {
+  const handleNewPost = (newPostData: Omit<FeedPost, "id" | "avatarText" | "avatarColor" | "avatarTextColor"> & { images?: { uri: string; type: string }[] }) => {
     const newPost: FeedPost = {
       ...newPostData,
       id: Date.now().toString(),
       avatarText: "ကျ",
       avatarColor: C.amberLight,
       avatarTextColor: C.amberDark,
+      images: newPostData.images,
     };
 
     setPosts([newPost, ...posts]);
@@ -1668,8 +1760,6 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 10,
     backgroundColor: C.surface,
-    alignItems: "center",
-    justifyContent: "center",
   },
   removeImageBtn: {
     position: "absolute",
