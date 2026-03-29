@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -6,17 +6,20 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { RiskBar } from "@/components/RiskBar";
 import { ActionCard } from "@/components/ActionCard";
 import { MARKET_DATA, getLatestPrice, formatPrice } from "@/data/marketData";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserTier, TIER_CONFIG } from "@/types/auth";
 
 const C = Colors.light;
 
-// Get a representative price from market data (first item with prices)
 function getMarketPrice() {
   const item = MARKET_DATA.find((m) => m.prices.length > 0);
   if (!item) return { price: "9,200", sub: "မန္တလေး · ပိဿာ" };
@@ -33,8 +36,43 @@ function getMarketPrice() {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const isWeb = Platform.OS === "web";
+  const { user, isExpert, isValidator, isAdmin } = useAuth();
   const marketInfo = getMarketPrice();
+
+  useEffect(() => {
+    if (!user) {
+      router.replace('/(auth)/login');
+    }
+  }, [user]);
+
+  if (!user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  const tier = getUserTier(user.score || 0);
+  const isExpertUser = isExpert();
+  const isValidatorUser = isValidator();
+  const isAdminUser = isAdmin();
+
+  // Handle KYC verification (for validators)
+  const handleKYCVerification = () => {
+    Alert.alert('KYC Verification', 'Review pending applications', [
+      { text: 'Cancel' },
+      { text: 'Review', onPress: () => Alert.alert('KYC Queue', '3 applications pending') },
+    ]);
+  };
+
+  // Handle user management (for admins)
+  const handleUserManagement = () => {
+    Alert.alert('User Management', 'Manage system users', [
+      { text: 'Cancel' },
+      { text: 'View Users', onPress: () => Alert.alert('Users', '1,247 total users') },
+    ]);
+  };
 
   return (
     <ScrollView
@@ -42,17 +80,137 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingBottom: 100 }}
       showsVerticalScrollIndicator={false}
     >
+      {/* Role-specific Header */}
       <View
         style={[
           styles.greeting,
+          { backgroundColor: isAdminUser ? C.purple : isValidatorUser ? C.blue : isExpertUser ? C.greenDark : C.primary },
           { paddingTop: Math.max(insets.top, 20) + 10 },
         ]}
       >
-        <Text style={styles.greetingSub}>မင်္ဂလာနံနက်ခင်း</Text>
-        <Text style={styles.greetingName}>ဦးအောင်လွင်</Text>
-        <Text style={styles.greetingFarm}>ပဲ သီးနှံ · ညောင်ဦးမြို့နယ် · ပင်ပြင်ဆင်ချိန်</Text>
+        <Text style={styles.greetingSub}>
+          {isAdminUser ? 'Administrator' : isValidatorUser ? 'KYC Validator' : isExpertUser ? 'Expert Farmer' : 'မင်္ဂလာနံနက်ခင်း'}
+        </Text>
+        <Text style={styles.greetingName}>{user.name}</Text>
+        <Text style={styles.greetingMeta}>
+          {user.township} · {tier === 'bronze' ? 'Bronze' : tier === 'silver' ? 'Silver' : tier === 'gold' ? 'Gold' : 'Platinum'} Tier
+        </Text>
+        <Text style={styles.greetingFarm}>
+          Score: {user.score} · KYC: {user.kycStatus === 'approved' ? '✓ Approved' : '○ Pending'}
+        </Text>
       </View>
 
+      {/* Role-Specific Action Cards */}
+      {(isValidatorUser || isAdminUser) && (
+        <>
+          <Text style={styles.sectionLabel}>
+            {isAdminUser ? 'Administration' : isValidatorUser ? 'KYC Verification' : 'Quick Actions'}
+          </Text>
+
+          <View style={styles.roleCard}>
+            {isValidatorUser && (
+              <>
+                <TouchableOpacity style={styles.roleAction} onPress={handleKYCVerification}>
+                  <View style={[styles.roleIcon, { backgroundColor: C.blueLight }]}>
+                    <Feather name="check-square" size={22} color={C.blue} />
+                  </View>
+                  <View style={styles.roleTextWrap}>
+                    <Text style={styles.roleActionTitle}>KYC Applications</Text>
+                    <Text style={styles.roleActionSub}>3 pending review</Text>
+                  </View>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>3</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.roleAction}>
+                  <View style={[styles.roleIcon, { backgroundColor: C.greenLight }]}>
+                    <Feather name="file-text" size={22} color={C.greenDark} />
+                  </View>
+                  <View style={styles.roleTextWrap}>
+                    <Text style={styles.roleActionTitle}>Verified Today</Text>
+                    <Text style={styles.roleActionSub}>12 applications</Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {isAdminUser && (
+              <>
+                <TouchableOpacity style={styles.roleAction} onPress={handleUserManagement}>
+                  <View style={[styles.roleIcon, { backgroundColor: C.purpleLight }]}>
+                    <Feather name="users" size={22} color={C.purple} />
+                  </View>
+                  <View style={styles.roleTextWrap}>
+                    <Text style={styles.roleActionTitle}>User Management</Text>
+                    <Text style={styles.roleActionSub}>1,247 total users</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.roleAction}>
+                  <View style={[styles.roleIcon, { backgroundColor: C.amberLight }]}>
+                    <Feather name="shield" size={22} color={C.amberDark} />
+                  </View>
+                  <View style={styles.roleTextWrap}>
+                    <Text style={styles.roleActionTitle}>System Status</Text>
+                    <Text style={styles.roleActionSub}>95% uptime</Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: C.greenLight }]}>
+                    <Text style={[styles.badgeText, { color: C.greenDark }]}>✓</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.roleAction}>
+                  <View style={[styles.roleIcon, { backgroundColor: C.blueLight }]}>
+                    <Feather name="activity" size={22} color={C.blue} />
+                  </View>
+                  <View style={styles.roleTextWrap}>
+                    <Text style={styles.roleActionTitle}>Permissions</Text>
+                    <Text style={styles.roleActionSub}>Manage access</Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </>
+      )}
+
+      {/* Stats Grid */}
+      <View style={styles.statsContainer}>
+        <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(tabs)/knowledge')}>
+          <View style={[styles.statIcon, { backgroundColor: C.redLight }]}>
+            <Feather name="message-circle" size={20} color={C.red} />
+          </View>
+          <Text style={styles.statValue}>24</Text>
+          <Text style={styles.statLabel}>Posts</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(tabs)/market')}>
+          <View style={[styles.statIcon, { backgroundColor: C.blueLight }]}>
+            <Feather name="trending-up" size={20} color={C.blue} />
+          </View>
+          <Text style={styles.statValue}>{marketInfo.price}</Text>
+          <Text style={styles.statLabel}>Price</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(tabs)/climate')}>
+          <View style={[styles.statIcon, { backgroundColor: C.amberLight }]}>
+            <Feather name="cloud" size={20} color={C.amberDark} />
+          </View>
+          <Text style={styles.statValue}>78%</Text>
+          <Text style={styles.statLabel}>Rain</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(tabs)/profile')}>
+          <View style={[styles.statIcon, { backgroundColor: C.purpleLight }]}>
+            <Feather name="award" size={20} color={C.purple} />
+          </View>
+          <Text style={styles.statValue}>{user.score || 0}</Text>
+          <Text style={styles.statLabel}>Score</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Main Action Cards */}
       <View style={styles.cardGrid}>
         <TouchableOpacity
           style={styles.modCard}
@@ -82,9 +240,9 @@ export default function HomeScreen() {
           activeOpacity={0.8}
         >
           <View style={[styles.modDot, { backgroundColor: C.purple }]} />
-          <Text style={styles.modLabel}>ညောင်ဦး Feed</Text>
-          <Text style={[styles.modVal, { color: C.purple, fontSize: 13 }]}>မေးခွန်း ၃ ခု</Text>
-          <Text style={styles.modSub}>ဖြေကြားမည်</Text>
+          <Text style={styles.modLabel}>Community</Text>
+          <Text style={[styles.modVal, { color: C.purple, fontSize: 13 }]}>24 Posts</Text>
+          <Text style={styles.modSub}>Feed</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -93,12 +251,13 @@ export default function HomeScreen() {
           activeOpacity={0.8}
         >
           <View style={[styles.modDot, { backgroundColor: C.amberDark }]} />
-          <Text style={styles.modLabel}>ပိုးမွှား ID</Text>
-          <Text style={[styles.modVal, { color: C.amberDark, fontSize: 13 }]}>ဓာတ်ပုံ ရိုက်ပါ</Text>
-          <Text style={styles.modSub}>AI စစ်ဆေး</Text>
+          <Text style={styles.modLabel}>ပိုးမွှား</Text>
+          <Text style={[styles.modVal, { color: C.amberDark, fontSize: 13 }]}>ID</Text>
+          <Text style={styles.modSub}>Scan</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Emergency Alerts */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>ယနေ့ အရေးပေါ် သတိပေးချက်</Text>
         <RiskBar
@@ -122,18 +281,23 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.background,
+  },
   scroll: {
     flex: 1,
     backgroundColor: C.background,
   },
   greeting: {
-    backgroundColor: C.primary,
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
   greetingSub: {
     fontSize: 11,
-    color: C.primaryMedium,
+    color: "rgba(255,255,255,0.8)",
     marginBottom: 4,
   },
   greetingName: {
@@ -141,10 +305,108 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
   },
+  greetingMeta: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 4,
+  },
   greetingFarm: {
     fontSize: 11,
-    color: C.primaryMedium,
+    color: "rgba(255,255,255,0.6)",
     marginTop: 2,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: C.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    paddingHorizontal: 12,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  roleCard: {
+    backgroundColor: C.card,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    marginHorizontal: 12,
+    overflow: "hidden",
+  },
+  roleAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+  },
+  roleIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  roleTextWrap: {
+    flex: 1,
+  },
+  roleActionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: C.text,
+  },
+  roleActionSub: {
+    fontSize: 11,
+    color: C.textSecondary,
+    marginTop: 2,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: C.redLight,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: C.red,
+  },
+  statsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: C.card,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    padding: 14,
+    alignItems: "center",
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: C.text,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: C.textSecondary,
+    marginTop: 4,
+    textAlign: "center",
   },
   cardGrid: {
     flexDirection: "row",
@@ -152,16 +414,15 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     marginTop: -8,
-    position: "relative",
-    zIndex: 1,
   },
   modCard: {
+    flex: 1,
+    minWidth: "45%",
     backgroundColor: C.card,
     borderRadius: 12,
     borderWidth: 0.5,
     borderColor: C.border,
-    padding: 10,
-    width: "47%",
+    padding: 14,
     minHeight: 80,
   },
   modDot: {
@@ -192,12 +453,7 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
   },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
+  loadingText: {
     color: C.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 2,
   },
 });

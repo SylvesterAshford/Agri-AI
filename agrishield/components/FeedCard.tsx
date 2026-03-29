@@ -1,8 +1,25 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 
 const C = Colors.light;
+
+export interface Comment {
+  id: string;
+  authorName: string;
+  authorBadge?: string;
+  authorBadgeBg?: string;
+  authorBadgeColor?: string;
+  avatarText: string;
+  avatarColor: string;
+  avatarTextColor: string;
+  body: string;
+  timestamp: string;
+  isAI?: boolean;
+  confidence?: number;
+  sources?: number;
+}
 
 export interface FeedPost {
   id: string;
@@ -22,88 +39,213 @@ export interface FeedPost {
   leftBorderColor?: string;
   aiChip?: { label: string; text: string; conf: string };
   loopBar?: string;
+  comments?: Comment[];
 }
 
 interface FeedCardProps {
   post: FeedPost;
   onHelpful?: () => void;
+  onComment?: (comment: string) => void;
+  onShare?: () => void;
 }
 
-export function FeedCard({ post, onHelpful }: FeedCardProps) {
+export function FeedCard({ post, onHelpful, onComment, onShare }: FeedCardProps) {
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [isHelpfulSelected, setIsHelpfulSelected] = useState(false);
+
+  const handleHelpful = () => {
+    setIsHelpfulSelected(!isHelpfulSelected);
+    onHelpful?.();
+  };
+
+  const handleAddComment = () => {
+    if (commentText.trim().length > 0) {
+      onComment?.(commentText);
+      setCommentText("");
+      setShowComments(true);
+    }
+  };
+
+  const commentsCount = post.comments?.length || 0;
+
   return (
-    <View
-      style={[
-        styles.container,
-        post.leftBorderColor && {
-          borderLeftWidth: 3,
-          borderLeftColor: post.leftBorderColor,
-          borderRadius: 0,
-          borderTopRightRadius: 12,
-          borderBottomRightRadius: 12,
-        },
-      ]}
-    >
+    <View style={styles.container}>
       {post.isPinned && (
         <View style={styles.pinnedBar}>
           <Text style={styles.pinnedText}>ကျွမ်းကျင်သူ အဖြေ — Pin ထားသည်</Text>
         </View>
       )}
-      <View style={styles.head}>
-        <View style={[styles.avatar, { backgroundColor: post.avatarColor }]}>
-          <Text style={[styles.avatarText, { color: post.avatarTextColor }]}>{post.avatarText}</Text>
+
+      {/* Main Post */}
+      <View style={styles.postContent}>
+        <View style={styles.head}>
+          <View style={[styles.avatar, { backgroundColor: post.avatarColor }]}>
+            <Text style={[styles.avatarText, { color: post.avatarTextColor }]}>{post.avatarText}</Text>
+          </View>
+          <View style={styles.authorInfo}>
+            <View style={styles.nameRow}>
+              <Text style={styles.authorName}>{post.authorName}</Text>
+              {post.authorBadge && (
+                <View style={[styles.badge, { backgroundColor: post.authorBadgeBg }]}>
+                  <Text style={[styles.badgeText, { color: post.authorBadgeColor }]}>{post.authorBadge}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.authorMeta}>{post.authorMeta}</Text>
+          </View>
         </View>
-        <View style={styles.authorInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.authorName}>{post.authorName}</Text>
-            {post.authorBadge && (
-              <View style={[styles.badge, { backgroundColor: post.authorBadgeBg }]}>
-                <Text style={[styles.badgeText, { color: post.authorBadgeColor }]}>{post.authorBadge}</Text>
+
+        <Text style={styles.body}>{post.body}</Text>
+
+        <View style={styles.tagRow}>
+          {post.tags.map((tag, i) => (
+            <View key={i} style={[styles.tag, { backgroundColor: tag.bg }]}>
+              <Text style={[styles.tagText, { color: tag.color }]}>{tag.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {post.alertText && (
+          <View style={styles.alertBanner}>
+            <View style={styles.alertDot} />
+            <Text style={styles.alertText}>{post.alertText}</Text>
+          </View>
+        )}
+
+        {post.loopBar && (
+          <View style={styles.loopBar}>
+            <View style={styles.loopDot} />
+            <Text style={styles.loopText}>{post.loopBar}</Text>
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.actionBtn, isHelpfulSelected && styles.actionBtnActive]}
+            onPress={handleHelpful}
+          >
+            <Feather
+              name="thumbs-up"
+              size={14}
+              color={isHelpfulSelected ? C.primary : C.textSecondary}
+            />
+            <Text style={[styles.actionText, isHelpfulSelected && { color: C.primary, fontWeight: "700" }]}>
+              အသုံးဝင် {post.helpful ? `(${post.helpful})` : ""}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => setShowComments(!showComments)}
+          >
+            <Feather name="message-circle" size={14} color={C.textSecondary} />
+            <Text style={styles.actionText}>
+              မှတ်ချက် {commentsCount > 0 ? `(${commentsCount})` : ""}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={onShare}>
+            <Feather name="share" size={14} color={C.textSecondary} />
+            <Text style={styles.actionText}>မျှဝေ</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Comment Input - Shows when comments are expanded */}
+        {showComments && (
+          <View style={styles.commentInputContainer}>
+            <View style={styles.commentInputRow}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="မှတ်ချက် ရေးသားပါ..."
+                placeholderTextColor={C.textSecondary}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.commentSubmitBtn, commentText.trim().length === 0 && { opacity: 0.5 }]}
+                onPress={handleAddComment}
+                disabled={commentText.trim().length === 0}
+              >
+                <Feather name="send" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Comments Section */}
+      {showComments && post.comments && post.comments.length > 0 && (
+        <View style={styles.commentsSection}>
+          {post.comments.map((comment, index) => (
+            <View key={comment.id} style={styles.commentItem}>
+              <View style={styles.commentLine} />
+              <View style={styles.commentContent}>
+                <View style={styles.commentHeader}>
+                  <View style={[
+                    styles.commentAvatar,
+                    { backgroundColor: comment.avatarColor },
+                    comment.isAI && styles.aiCommentAvatar
+                  ]}>
+                    {comment.isAI ? (
+                      <Text style={styles.aiCommentAvatarText}>AI</Text>
+                    ) : (
+                      <Text style={styles.commentAvatarText}>{comment.avatarText}</Text>
+                    )}
+                  </View>
+                  <View style={styles.commentInfo}>
+                    <View style={styles.commentNameRow}>
+                      <Text style={styles.commentAuthor}>{comment.authorName}</Text>
+                      {comment.authorBadge && (
+                        <View style={[
+                          styles.commentBadge,
+                          { backgroundColor: comment.authorBadgeBg }
+                        ]}>
+                          <Text style={[styles.commentBadgeText, { color: comment.authorBadgeColor }]}>
+                            {comment.authorBadge}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.commentTimestamp}>{comment.timestamp}</Text>
+                  </View>
+                  {comment.isAI && comment.confidence && (
+                    <View style={styles.aiConfidenceBadge}>
+                      <Text style={styles.aiConfidenceText}>
+                        ယုံကြည်မှု {comment.confidence}%
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.commentBody}>{comment.body}</Text>
+
+                {comment.isAI && comment.sources !== undefined && comment.sources > 0 && (
+                  <View style={styles.aiSources}>
+                    <Feather name="book-open" size={12} color={C.primary} />
+                    <Text style={styles.aiSourcesText}>
+                      ဗဟုသုတ အခြေပြုပြီး {comment.sources} ရင်းမြစ်မှ ကောက်ယူဖြေကြားထားသည်
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.commentActions}>
+                  <TouchableOpacity style={styles.commentActionBtn}>
+                    <Feather name="thumbs-up" size={11} color={C.textSecondary} />
+                    <Text style={styles.commentActionText}>အသုံးဝင်သည်</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.commentActionBtn}>
+                    <Feather name="share" size={11} color={C.textSecondary} />
+                    <Text style={styles.commentActionText}>မျှဝေ</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            )}
-          </View>
-          <Text style={styles.authorMeta}>{post.authorMeta}</Text>
-        </View>
-      </View>
-      <Text style={styles.body}>{post.body}</Text>
-      <View style={styles.tagRow}>
-        {post.tags.map((tag, i) => (
-          <View key={i} style={[styles.tag, { backgroundColor: tag.bg }]}>
-            <Text style={[styles.tagText, { color: tag.color }]}>{tag.label}</Text>
-          </View>
-        ))}
-      </View>
-      {post.alertText && (
-        <View style={styles.alertBanner}>
-          <View style={styles.alertDot} />
-          <Text style={styles.alertText}>{post.alertText}</Text>
+            </View>
+          ))}
         </View>
       )}
-      {post.aiChip && (
-        <View style={styles.aiChip}>
-          <Text style={styles.aiChipLabel}>{post.aiChip.label}</Text>
-          <Text style={styles.aiChipText}>{post.aiChip.text}</Text>
-          <View style={styles.aiConf}>
-            <Text style={styles.aiConfText}>{post.aiChip.conf}</Text>
-          </View>
-        </View>
-      )}
-      {post.loopBar && (
-        <View style={styles.loopBar}>
-          <View style={styles.loopDot} />
-          <Text style={styles.loopText}>{post.loopBar}</Text>
-        </View>
-      )}
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={onHelpful}>
-          <Text style={styles.actionText}>အသုံးဝင် {post.helpful ? `(${post.helpful})` : ""}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn}>
-          <Text style={styles.actionText}>ဖြေကြားရန်</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn}>
-          <Text style={styles.actionText}>မျှဝေ</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -115,6 +257,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: C.border,
     overflow: "hidden",
+    marginBottom: 10,
   },
   pinnedBar: {
     backgroundColor: C.purpleLight,
@@ -128,24 +271,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: C.purple,
   },
+  postContent: {
+    padding: 14,
+  },
   head: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    padding: 12,
-    paddingBottom: 8,
+    marginBottom: 8,
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    fontSize: 11,
-    lineHeight: 20,
-    paddingTop: 2,
+    fontSize: 12,
     fontWeight: "700",
   },
   authorInfo: {
@@ -158,11 +301,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   authorName: {
-    fontSize: 13,
-    lineHeight: 28,
-    paddingTop: 4,
+    fontSize: 14,
     fontWeight: "600",
     color: C.text,
+    lineHeight: 30,
+    paddingVertical: 5,
   },
   badge: {
     paddingHorizontal: 6,
@@ -171,31 +314,28 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 9,
-    lineHeight: 16,
-    paddingTop: 2,
     fontWeight: "600",
+    paddingTop: 1,
   },
   authorMeta: {
     fontSize: 10,
-    lineHeight: 18,
-    paddingTop: 2,
     color: C.textSecondary,
     marginTop: 1,
+    lineHeight: 22,
+    paddingVertical: 3,
   },
   body: {
-    fontSize: 12,
-    color: "#333",
-    lineHeight: 24,
-    paddingTop: 2,
-    paddingHorizontal: 14,
-    paddingBottom: 10,
+    fontSize: 13,
+    color: C.text,
+    lineHeight: 28,
+    paddingVertical: 5,
+    marginBottom: 10,
   },
   tagRow: {
     flexDirection: "row",
     gap: 5,
     flexWrap: "wrap",
-    paddingHorizontal: 14,
-    paddingBottom: 10,
+    marginBottom: 10,
   },
   tag: {
     paddingHorizontal: 9,
@@ -205,12 +345,13 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 10,
     fontWeight: "500",
+    lineHeight: 20,
+    paddingVertical: 3,
   },
   alertBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginHorizontal: 14,
     marginBottom: 10,
     backgroundColor: C.redLight,
     borderRadius: 8,
@@ -227,42 +368,8 @@ const styles = StyleSheet.create({
     color: C.redDark,
     fontWeight: "500",
     flex: 1,
-    lineHeight: 18,
-    paddingTop: 2,
-  },
-  aiChip: {
-    backgroundColor: C.primaryLight,
-    borderRadius: 10,
-    padding: 10,
-    marginHorizontal: 14,
-    marginBottom: 8,
-  },
-  aiChipLabel: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: C.primaryDark,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 3,
-  },
-  aiChipText: {
-    fontSize: 11,
-    color: C.primary,
     lineHeight: 20,
-    paddingTop: 2,
-  },
-  aiConf: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  aiConfText: {
-    fontSize: 9,
-    color: "#fff",
-    fontWeight: "600",
+    paddingVertical: 3,
   },
   loopBar: {
     flexDirection: "row",
@@ -271,7 +378,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0EEE8",
     borderRadius: 8,
     padding: 8,
-    marginHorizontal: 14,
     marginBottom: 8,
   },
   loopDot: {
@@ -284,26 +390,186 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: C.purple,
     flex: 1,
-    lineHeight: 18,
-    paddingTop: 2,
+    lineHeight: 20,
+    paddingVertical: 3,
   },
   actions: {
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
     borderTopWidth: 0.5,
-    borderTopColor: "#F0EDE8",
-    padding: 10,
-    paddingHorizontal: 14,
+    borderTopColor: C.border,
+    paddingTop: 10,
   },
   actionBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 0.5,
-    borderColor: C.border,
-    backgroundColor: C.card,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  actionBtnActive: {
+    backgroundColor: C.primaryLight,
   },
   actionText: {
+    fontSize: 11,
+    color: C.textSecondary,
+    fontWeight: "500",
+  },
+  // Comment Input
+  commentInputContainer: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: C.border,
+  },
+  commentInputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: C.text,
+    minHeight: 36,
+    maxHeight: 80,
+  },
+  commentSubmitBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: C.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Comments Section
+  commentsSection: {
+    backgroundColor: C.surface,
+    borderTopWidth: 0.5,
+    borderTopColor: C.border,
+  },
+  commentItem: {
+    flexDirection: "row",
+    paddingVertical: 10,
+  },
+  commentLine: {
+    width: 3,
+    backgroundColor: C.primary,
+    marginLeft: 14,
+    marginRight: 8,
+    flexShrink: 0,
+  },
+  commentContent: {
+    flex: 1,
+    paddingRight: 14,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  commentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  commentAvatarText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  aiCommentAvatar: {
+    backgroundColor: C.primaryLight,
+  },
+  aiCommentAvatarText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: C.primary,
+  },
+  commentInfo: {
+    flex: 1,
+  },
+  commentNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    flexWrap: "wrap",
+  },
+  commentAuthor: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: C.text,
+    lineHeight: 26,
+    paddingVertical: 4,
+  },
+  commentBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  commentBadgeText: {
+    fontSize: 8,
+    fontWeight: "600",
+  },
+  commentTimestamp: {
+    fontSize: 10,
+    color: C.textSecondary,
+    marginTop: 1,
+  },
+  aiConfidenceBadge: {
+    backgroundColor: C.greenLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  aiConfidenceText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: C.greenDark,
+    paddingTop: 2,
+  },
+  commentBody: {
+    fontSize: 12,
+    color: C.text,
+    lineHeight: 26,
+    paddingVertical: 4,
+    marginBottom: 6,
+  },
+  aiSources: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: C.primaryLight,
+    borderRadius: 6,
+    padding: 5,
+    marginBottom: 6,
+  },
+  aiSourcesText: {
+    fontSize: 9,
+    color: C.primaryDark,
+    flex: 1,
+    lineHeight: 14,
+  },
+  commentActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  commentActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  commentActionText: {
     fontSize: 10,
     color: C.textSecondary,
     fontWeight: "500",

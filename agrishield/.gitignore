@@ -38,4 +38,8 @@ yarn-error.*
 *.tsbuildinfo
 .vercel
 
+# Security: Google Cloud credentials (NEVER commit these!)
 .env
+my-project-*.json
+*.json.key
+service-account*.json

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -7,22 +7,70 @@ import {
   Switch,
   TouchableOpacity,
   Platform,
+  Alert,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserTier, TIER_CONFIG, getMaxLoanAmount } from "@/types/auth";
 
 const C = Colors.light;
 
 export default function ProfileScreen() {
-  const [notifWeather, setNotifWeather] = useState(true);
-  const [notifMarket, setNotifMarket] = useState(true);
-  const [notifPest, setNotifPest] = useState(true);
-  const [langMm, setLangMm] = useState(true);
-  const [shareData, setShareData] = useState(true);
-
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const isWeb = Platform.OS === "web";
+  const { user, logout, isExpert, isValidator, isAdmin } = useAuth();
+
+  const [notifWeather, setNotifWeather] = React.useState(true);
+  const [notifMarket, setNotifMarket] = React.useState(true);
+  const [notifPest, setNotifPest] = React.useState(true);
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: logout },
+    ]);
+  };
+
+  if (!user) return null;
+
+  const tier = getUserTier(user.score);
+  const tierConfig = TIER_CONFIG[tier];
+  const maxLoan = getMaxLoanAmount(user.score);
+
+  // Get role badge
+  const getRoleBadge = () => {
+    if (isAdmin()) {
+      return { label: 'Admin', color: C.purple, bg: C.purpleLight, icon: 'shield' as const };
+    }
+    if (isValidator()) {
+      return { label: 'Validator', color: C.blue, bg: C.blueLight, icon: 'check-square' as const };
+    }
+    if (isExpert()) {
+      return { label: 'Expert', color: C.greenDark, bg: C.greenLight, icon: 'award' as const };
+    }
+    return { label: 'Farmer', color: C.amberDark, bg: C.amberLight, icon: 'user' as const };
+  };
+
+  const roleBadge = getRoleBadge();
+
+  // Get KYC status badge
+  const getKYCStatusBadge = () => {
+    switch (user.kycStatus) {
+      case 'approved':
+        return { label: 'KYC Approved', color: C.greenDark, bg: C.greenLight };
+      case 'pending':
+        return { label: 'KYC Pending', color: C.amberDark, bg: C.amberLight };
+      case 'rejected':
+        return { label: 'KYC Rejected', color: C.red, bg: C.redLight };
+      default:
+        return { label: 'KYC Not Submitted', color: C.textSecondary, bg: C.surface };
+    }
+  };
+
+  const kycBadge = getKYCStatusBadge();
 
   return (
     <ScrollView
@@ -33,29 +81,123 @@ export default function ProfileScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
+      {/* Enhanced Profile Header with Role Badge */}
       <View style={styles.profileHeader}>
-        <View style={styles.avatarLarge}>
-          <Text style={styles.avatarLargeText}>ဦအ</Text>
+        <View style={[styles.avatarLarge, { borderColor: roleBadge.color }]}>
+          <Text style={[styles.avatarLargeText, { color: roleBadge.color }]}>{user.name.charAt(0)}</Text>
         </View>
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>ဦးအောင်လွင်</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.profileName}>{user.name}</Text>
+            <View style={[styles.roleBadge, { backgroundColor: roleBadge.bg }]}>
+              <Feather name={roleBadge.icon} size={10} color={roleBadge.color} />
+              <Text style={[styles.roleBadgeText, { color: roleBadge.color }]}>{roleBadge.label}</Text>
+            </View>
+          </View>
           <View style={styles.verifiedRow}>
             <Feather name="check-circle" size={12} color={C.primary} />
-            <Text style={styles.verifiedText}>တောင်သူ စစ် · OTP အတည်ပြုပြီး</Text>
+            <Text style={styles.verifiedText}>
+              {user.township} · {user.role === 'farmer' ? 'တောင်သူ' : user.role === 'expert' ? 'ကျွမ်းကျင်သူ' : user.role === 'validator' ? 'စိစစ်ရေး' : 'အက်ဒမင်'}
+            </Text>
           </View>
-          <Text style={styles.profileMeta}>ညောင်ဦးမြို့နယ် · ရာသီ ၇ ကြာ</Text>
+          <View style={styles.kycRow}>
+            <View style={[styles.kycBadge, { backgroundColor: kycBadge.bg }]}>
+              <Text style={[styles.kycBadgeText, { color: kycBadge.color }]}>{kycBadge.label}</Text>
+            </View>
+          </View>
         </View>
       </View>
 
-      <Text style={styles.sectionLabel}>ကျွန်ုပ် ခြံမြေ</Text>
+      {/* Score and Tier Card */}
+      <View style={styles.scoreCard}>
+        <View style={styles.scoreHeader}>
+          <Text style={styles.scoreLabel}>Credit Score</Text>
+          <View style={[styles.tierBadge, { backgroundColor: tier === 'gold' || tier === 'platinum' ? C.amberLight : C.surface }]}>
+            <Text style={[styles.tierText, { color: tier === 'gold' || tier === 'platinum' ? C.amberDark : C.textSecondary }]}>
+              {tierConfig.label} Tier
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.scoreValue}>{user.score}</Text>
+        <View style={styles.scoreTrack}>
+          <View
+            style={[
+              styles.scoreFill,
+              {
+                width: `${(user.score / 1000) * 100}%`,
+                backgroundColor: user.score >= 300 ? C.amber : C.textSecondary,
+              },
+            ]}
+          />
+        </View>
+        <View style={styles.scoreRange}>
+          <Text style={styles.scoreRangeText}>0</Text>
+          <Text style={styles.scoreRangeText}>1000</Text>
+        </View>
+
+        {/* Requirements */}
+        {user.score < 300 && user.role === 'farmer' && (
+          <View style={styles.requirementsCard}>
+            <Text style={styles.requirementsTitle}>Expert အတွက် လိုအပ်ချက်များ:</Text>
+            <View style={styles.requirementItem}>
+              <Feather name={user.score >= 0 ? "check-circle" : "circle"} size={14} color={C.greenDark} />
+              <Text style={styles.requirementText}>Score ≥ 300 points</Text>
+            </View>
+            <View style={styles.requirementItem}>
+              <Feather name={user.kycStatus === 'approved' ? "check-circle" : "circle"} size={14} color={C.greenDark} />
+              <Text style={styles.requirementText}>KYC Approved</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Stats Grid */}
+      <View style={styles.statsGrid}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{user.score}</Text>
+          <Text style={styles.statLabel}>Credit Score</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{(maxLoan / 1000).toFixed(0)}K</Text>
+          <Text style={styles.statLabel}>Max Loan</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{tierConfig.label}</Text>
+          <Text style={styles.statLabel}>Tier</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{user.kycStatus === 'approved' ? '✓' : '○'}</Text>
+          <Text style={styles.statLabel}>KYC</Text>
+        </View>
+      </View>
+
+      {/* KYC Action Button (Only for Farmers and Experts) */}
+      {(user.role === 'farmer' || user.role === 'expert') && (
+        <TouchableOpacity
+          style={styles.kycButton}
+          onPress={() => router.push('/(tabs)/kyc')}
+        >
+          <View style={styles.kycButtonContent}>
+            <Feather name="file-text" size={20} color={C.primary} />
+            <View style={styles.kycButtonText}>
+              <Text style={styles.kycButtonTitle}>KYC စီမံခန့်ခွဲမှု</Text>
+              <Text style={styles.kycButtonSubtitle}>Credit Score တွက်ချက်ရန်</Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={20} color={C.textSecondary} />
+        </TouchableOpacity>
+      )}
+
+      {/* Farm Info Card */}
+      <Text style={styles.sectionLabel}>ခြံမြေ အချက်အလက်</Text>
       <View style={styles.card}>
         {[
           { icon: "layers" as const, label: "သီးနှံ", value: "ပဲ (Groundnut)" },
-          { icon: "map-pin" as const, label: "မြို့နယ်", value: "ညောင်ဦး" },
+          { icon: "map-pin" as const, label: "မြို့နယ်", value: user.township },
           { icon: "maximize-2" as const, label: "ဧကကျယ်ဝန်း", value: "၁၂ ဧက" },
-          { icon: "calendar" as const, label: "စိုက်ချိန်", value: "ဇန်နဝါရီ ၁၅ (၇ ဆင့်ပြီး)" },
         ].map((item, i) => (
-          <View key={i} style={[styles.farmRow, i < 3 && styles.farmRowBorder]}>
+          <View key={i} style={[styles.farmRow, i < 2 && styles.farmRowBorder]}>
             <View style={styles.farmIconWrap}>
               <Feather name={item.icon} size={15} color={C.primary} />
             </View>
@@ -66,31 +208,9 @@ export default function ProfileScreen() {
             <Feather name="chevron-right" size={14} color={C.textSecondary} />
           </View>
         ))}
-        <TouchableOpacity style={styles.editFarmBtn} activeOpacity={0.8}>
-          <Text style={styles.editFarmText}>ခြံမြေ ပြင်ဆင်မည်</Text>
-        </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionLabel}>AI ရဲ့ ဆောင်ရွက်ချက်</Text>
-      <View style={styles.card}>
-        <View style={styles.aiStatsRow}>
-          <View style={styles.aiStat}>
-            <Text style={styles.aiStatVal}>ဆင့် ၇</Text>
-            <Text style={styles.aiStatLabel}>သီးနှံ ကြီးထွားမှု</Text>
-          </View>
-          <View style={styles.aiStatDivider} />
-          <View style={styles.aiStat}>
-            <Text style={styles.aiStatVal}>၈၃%</Text>
-            <Text style={styles.aiStatLabel}>ခန့်မှန်း တိကျမှု</Text>
-          </View>
-          <View style={styles.aiStatDivider} />
-          <View style={styles.aiStat}>
-            <Text style={styles.aiStatVal}>ရက် ၄၅</Text>
-            <Text style={styles.aiStatLabel}>ရိတ်သိမ်းချိန်</Text>
-          </View>
-        </View>
-      </View>
-
+      {/* Notifications */}
       <Text style={styles.sectionLabel}>သတိပေးချက် ထိန်းချုပ်မှု</Text>
       <View style={styles.card}>
         {[
@@ -114,51 +234,10 @@ export default function ProfileScreen() {
         ))}
       </View>
 
-      <Text style={styles.sectionLabel}>ဘာသာစကား</Text>
-      <View style={styles.card}>
-        <View style={styles.toggleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.toggleLabel}>မြန်မာဘာသာ</Text>
-            <Text style={styles.toggleSub}>Zawgyi / Unicode ရွေးချယ်မှု</Text>
-          </View>
-          <Switch
-            value={langMm}
-            onValueChange={setLangMm}
-            trackColor={{ false: "#E0DED8", true: C.primaryLight }}
-            thumbColor={langMm ? C.primary : "#f4f3f4"}
-            ios_backgroundColor="#E0DED8"
-          />
-        </View>
-      </View>
-
-      <Text style={styles.sectionLabel}>ဒေတာ မျှဝေမှု</Text>
-      <View style={styles.card}>
-        <View style={styles.toggleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.toggleLabel}>မသိမသာ မျှဝေမည်</Text>
-            <Text style={styles.toggleSub}>AI မော်ဒယ် ပိုမိုတိကျစေရန် ကူညီသည် · ကိုယ်ရေး အချက်အလက် မပါ</Text>
-          </View>
-          <Switch
-            value={shareData}
-            onValueChange={setShareData}
-            trackColor={{ false: "#E0DED8", true: C.primaryLight }}
-            thumbColor={shareData ? C.primary : "#f4f3f4"}
-            ios_backgroundColor="#E0DED8"
-          />
-        </View>
-        {shareData && (
-          <View style={styles.dataShareInfo}>
-            <Feather name="shield" size={12} color={C.primary} />
-            <Text style={styles.dataShareText}>
-              ယာခင်းကျယ်ဝန်း၊ ရာသီဥတု ဖြစ်ရပ်၊ ဈေးနှုန်း သာ မျှဝေသည် — နာမည်မပါ
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8}>
-        <Feather name="log-out" size={15} color={C.textSecondary} />
-        <Text style={styles.logoutText}>ထွက်မည်</Text>
+      {/* Logout */}
+      <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} onPress={handleLogout}>
+        <Feather name="log-out" size={15} color={C.red} />
+        <Text style={[styles.logoutText, { color: C.red }]}>ထွက်မည်</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -185,51 +264,186 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   avatarLarge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: C.primaryLight,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: C.surface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: C.primary,
   },
   avatarLargeText: {
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: "700",
-    color: C.primary,
   },
   profileInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
   profileName: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "700",
     color: C.text,
-    marginBottom: 4,
+    lineHeight: 34,
+    paddingVertical: 6,
+  },
+  roleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  roleBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
   verifiedRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginBottom: 2,
+    marginTop: 4,
+  },
+  dataShareText: {
+    fontSize: 12,
+    color: C.primaryDark,
+    flex: 1,
+    lineHeight: 26,
+    paddingVertical: 6,
   },
   verifiedText: {
     fontSize: 11,
     color: C.primary,
     fontWeight: "500",
   },
-  profileMeta: {
+  kycRow: {
+    marginTop: 6,
+  },
+  kycBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  kycBadgeText: {
+    fontSize: 9,
+    fontWeight: "600",
+  },
+  scoreCard: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    padding: 16,
+  },
+  scoreHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  scoreLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: C.text,
+  },
+  tierBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  tierText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  scoreValue: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: C.text,
+    marginTop: 8,
+  },
+  scoreTrack: {
+    height: 8,
+    backgroundColor: C.surface,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginTop: 12,
+  },
+  scoreFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  scoreRange: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 6,
+  },
+  scoreRangeText: {
+    fontSize: 10,
+    color: C.textSecondary,
+  },
+  requirementsCard: {
+    backgroundColor: C.surface,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  requirementsTitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: C.text,
+    marginBottom: 8,
+  },
+  requirementItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  requirementText: {
     fontSize: 11,
     color: C.textSecondary,
   },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: C.card,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: "center",
+    borderWidth: 0.5,
+    borderColor: C.border,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: C.text,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: C.textSecondary,
+    marginTop: 4,
+    textAlign: "center",
+  },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: C.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    marginTop: 4,
+    marginTop: 8,
+    lineHeight: 24,
+    paddingVertical: 4,
   },
   card: {
     backgroundColor: C.card,
@@ -264,50 +478,41 @@ const styles = StyleSheet.create({
     color: C.textSecondary,
     fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.3,
   },
   farmValue: {
     fontSize: 13,
     color: C.text,
     fontWeight: "600",
-    marginTop: 1,
+    marginTop: 2,
   },
-  editFarmBtn: {
-    margin: 12,
-    marginTop: 8,
-    paddingVertical: 10,
-    backgroundColor: C.primaryLight,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  editFarmText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: C.primary,
-  },
-  aiStatsRow: {
+  kycButton: {
+    backgroundColor: C.card,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    padding: 14,
     flexDirection: "row",
-    padding: 16,
-  },
-  aiStat: {
-    flex: 1,
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
-  aiStatVal: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: C.primary,
+  kycButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  aiStatLabel: {
-    fontSize: 10,
+  kycButtonText: {
+    flexDirection: "column",
+  },
+  kycButtonTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: C.text,
+  },
+  kycButtonSubtitle: {
+    fontSize: 11,
     color: C.textSecondary,
-    marginTop: 3,
-    textAlign: "center",
-  },
-  aiStatDivider: {
-    width: 0.5,
-    backgroundColor: C.border,
-    marginVertical: 4,
+    marginTop: 2,
   },
   toggleRow: {
     flexDirection: "row",
@@ -320,31 +525,17 @@ const styles = StyleSheet.create({
     borderBottomColor: C.border,
   },
   toggleLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
     color: C.text,
-    marginBottom: 2,
+    lineHeight: 30,
+    paddingVertical: 6,
   },
   toggleSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: C.textSecondary,
-    lineHeight: 15,
-  },
-  dataShareInfo: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    backgroundColor: C.primaryLight,
-    margin: 12,
-    marginTop: 0,
-    borderRadius: 8,
-    padding: 10,
-  },
-  dataShareText: {
-    fontSize: 11,
-    color: C.primaryDark,
-    flex: 1,
-    lineHeight: 16,
+    lineHeight: 24,
+    paddingVertical: 4,
   },
   logoutBtn: {
     flexDirection: "row",
@@ -353,13 +544,12 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: C.border,
-    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.red,
     marginTop: 4,
   },
   logoutText: {
     fontSize: 13,
-    color: C.textSecondary,
+    fontWeight: "600",
   },
 });

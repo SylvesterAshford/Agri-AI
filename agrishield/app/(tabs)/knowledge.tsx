@@ -9,11 +9,13 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { FeedCard, FeedPost } from "@/components/FeedCard";
+import { FeedCard, FeedPost, Comment } from "@/components/FeedCard";
+import { queryRagCorpus, RagQuery } from "@/services/vertexRagAI";
 
 const C = Colors.light;
 
@@ -39,7 +41,7 @@ const POST_TYPE_FILTERS: { key: PostTypeFilter; label: string; icon: string; col
 
 const INITIAL_POSTS: FeedPost[] = [
   {
-    id: "1",
+    id: "f1",
     avatarText: "ဦစော",
     avatarColor: C.amberLight,
     avatarTextColor: C.amberDark,
@@ -48,16 +50,15 @@ const INITIAL_POSTS: FeedPost[] = [
     authorBadgeBg: C.greenLight,
     authorBadgeColor: C.greenDark,
     authorMeta: "ညောင်ဦး · မြောက်ဘက် · ၁ နာရီ",
-    body: "ပဲခင်းမှာ ရွက်ဝါရောဂါ ကျနေပါတယ်။ မိုးခေါင်ပြီးနောက် ဖြစ်တာပါ။ ဘာကြောင့်လဲခင်ဗျာ?",
+    body: "ပဲခင်းမှာ အရွက်တွေ ဝါနေပါတယ်။ ဘယ်ဓာတ်မြေဩဇာ အမျိုးအစားကို အသုံးပြုသင့်ပါသလဲ?",
     tags: [
       { label: "မေးခွန်း", bg: C.amberLight, color: C.amberDeep },
-      { label: "ပဲ", bg: C.amberLight, color: C.amberDark },
-      { label: "ရွက်ဝါ", bg: C.amberLight, color: C.amberDeep },
+      { label: "ဓာတ်မြေဩဇာ", bg: C.greenLight, color: C.greenDark },
     ],
     helpful: 12,
   },
   {
-    id: "2",
+    id: "f2",
     avatarText: "ဒေါ်",
     avatarColor: C.purpleLight,
     avatarTextColor: C.purpleDark,
@@ -65,62 +66,16 @@ const INITIAL_POSTS: FeedPost[] = [
     authorBadge: "ဦးစီးဌာန စစ်",
     authorBadgeBg: C.purpleLight,
     authorBadgeColor: C.purple,
-    authorMeta: "စိုက်ပျိုးရေး ဦးစီးဌာန · ၁ နာရီ",
-    body: "မ ကိုကိုထံ ဖြေကြားချက် — မြောက်ဒေသတွင် ရေကြီးနိုင်ချေ ရှိပါက ရင့်မှည့်ချိန် ၇ ရက်ကျော် ကျန်သေးသောအခါ ပိုတက်စီယမ် ဓာတ်မြေဩဇာ လောင်းပေးပါ",
+    authorMeta: "စိုက်ပျိုးရေး ဦးစီးဌာန · ၂ နာရီ",
+    body: "ရေကြီးပြီးနောက် စပါးခင်းများတွင် ပိုတက်စီယမ် ဓာတ်မြေဩဇာ အသုံးပြုပါက အထွက်နှုန်း ၂၀% တိုးတက်သည်",
     tags: [
-      { label: "ကျွမ်းကျင်သူ", bg: C.purpleLight, color: C.purple },
-      { label: "ရေကြီး", bg: C.blueLight, color: C.blue },
-      { label: "စပါး", bg: C.surface, color: "#5F5E5A" },
+      { label: "အကြံပြုချက်", bg: C.greenLight, color: C.greenDark },
+      { label: "ဓာတ်မြေဩဇာ", bg: C.greenLight, color: C.greenDark },
     ],
-    isPinned: true,
     helpful: 61,
-    aiChip: {
-      label: "AI ဗဟုသုတ Loop",
-      text: "ဤအကြံပြုချက်သည် ၂၀ ရာသီ ဒေတာမှ သင်ယူပြီး တောင်သူ ၁၂ ဦး၏ ဖြေကြားချက် အတည်ပြုမှုနှင့် ကိုက်ညီသည်",
-      conf: "ယုံကြည်မှု 94%",
-    },
-    loopBar: "တောင်သူ ၆၁ ဦး 'အသုံးဝင်' — Model ပြန်သင်ယူမှုတွင် ထည့်သွင်းမည်",
   },
   {
-    id: "3",
-    avatarText: "ဦအ",
-    avatarColor: C.amberLight,
-    avatarTextColor: C.amberDark,
-    authorName: "ဦးအောင်လွင်",
-    authorBadge: "တောင်သူ စစ်",
-    authorBadgeBg: C.greenLight,
-    authorBadgeColor: C.greenDark,
-    authorMeta: "ညောင်ဦး · မြောက်ဘက် · ၂ နာရီ",
-    body: "⚠️ သတိပေးချက် — ပဲခင်းမှာ မွှားပင့်ကူ တွေ့ပါသည် — တစ်ခင်းလုံး ပျံ့နှံ့နေပြီ။ အမြန်ဆုံး ကုသမှုခံယူပါ။",
-    tags: [
-      { label: "ပိုးမွှား အတည်", bg: C.redLight, color: C.redDark },
-      { label: "ပဲ", bg: C.amberLight, color: C.amberDark },
-      { label: "အရေးပေါ်", bg: C.redLight, color: C.red },
-    ],
-    alertText: "ညောင်ဦး ပဲတောင်သူ ၃၄၀ ဦးကို သတိပေးချက် ပေးပို့ပြီး",
-    helpful: 48,
-    leftBorderColor: C.red,
-  },
-  {
-    id: "4",
-    avatarText: "ဒလ",
-    avatarColor: C.purpleLight,
-    avatarTextColor: C.purple,
-    authorName: "ဒေါ်လင်းဇာနီ",
-    authorBadge: "ဦးစီးဌာန",
-    authorBadgeBg: C.purpleLight,
-    authorBadgeColor: C.purple,
-    authorMeta: "စိုက်ပျိုးရေး ဦးစီးဌာန · ၃ နာရီ",
-    body: "မွှားပင့်ကူ နိုင်မယ်! နေမဆေးရည် ၃ မီလီ + ဆပ်ပြာရည် အနည်းငယ် + ရေ ၁ လီတာ ရောပြီး မနက် ၆-၈ နာရီ ကြား ဖျန်းပေးပါ။ ၃ ရက်တစ်ကြိမ် ၂ ကြိမ် ဖျန်းပါ။",
-    tags: [
-      { label: "ကျွမ်းကျင်သူ အဖြေ", bg: C.purpleLight, color: C.purple },
-      { label: "စစ်ဆေးပြီး", bg: C.greenLight, color: C.greenDark },
-      { label: "ကုသနည်း", bg: C.greenLight, color: C.greenDark },
-    ],
-    helpful: 89,
-  },
-  {
-    id: "5",
+    id: "f3",
     avatarText: "ဦမောင်",
     avatarColor: C.amberLight,
     avatarTextColor: C.amberDark,
@@ -128,33 +83,52 @@ const INITIAL_POSTS: FeedPost[] = [
     authorBadge: "တောင်သူ",
     authorBadgeBg: C.greenLight,
     authorBadgeColor: C.greenDark,
-    authorMeta: "ညောင်ဦး · တောင်ဘက် · ၄ နာရီ",
-    body: "ဒီနှစ် ပဲဈေး ဘယ်လောက်ရှိမလဲခင်ဗျာ။ ပွဲရုံတွေက ဘယ်နှစ်ပိဿာ ဝယ်နေကြလဲ?",
+    authorMeta: "ညောင်ဦး · တောင်ဘက် · ၃ နာရီ",
+    body: "NPK ၁၅:၁၅:၁၅ ဓာတ်မြေဩဇာကို ဘယ်အချိန်မှာ အသုံးပြုရမလဲ? စိုက်ပြီး ဘယ်လောက်ကြာမှ လောင်းရမလဲ?",
     tags: [
       { label: "မေးခွန်း", bg: C.amberLight, color: C.amberDeep },
-      { label: "ဈေးနှုန်း", bg: C.greenLight, color: C.greenDark },
+      { label: "ဓာတ်မြေဩဇာ", bg: C.greenLight, color: C.greenDark },
     ],
-    helpful: 8,
+    helpful: 28,
   },
   {
-    id: "6",
-    avatarText: "စု",
+    id: "d1",
+    avatarText: "ဦအ",
     avatarColor: C.amberLight,
     avatarTextColor: C.amberDark,
-    authorName: "စုဝေး",
-    authorBadge: "တောင်သူ · ၃ ရာသီ",
+    authorName: "ဦးအောင်လွင်",
+    authorBadge: "တောင်သူ စစ်",
     authorBadgeBg: C.greenLight,
     authorBadgeColor: C.greenDark,
-    authorMeta: "ညောင်ဦး · တောင်ဘက် · ၅ နာရီ",
-    body: "ငရုတ်ကောင်းမျိုး အရွက်တွေ ဝါလာနေတယ် — အောက်က အရွက်တွေ ပိုဝါတယ်။ ဘာဓာတ်ချို့တာလဲခင်ဗျာ?",
+    authorMeta: "ညောင်ဦး · မြောက်ဘက် · ၄ နာရီ",
+    body: "⚠️ သတိပေးချက် — ပဲခင်းမှာ မွှားပင့်ကူ တွေ့ပါသည် — တစ်ခင်းလုံး ပျံ့နှံ့နေပြီ။ အမြန်ဆုံး ကုသမှုခံယူပါ။",
     tags: [
-      { label: "မေးခွန်း", bg: C.amberLight, color: C.amberDeep },
-      { label: "ငရုတ်", bg: C.amberLight, color: C.amberDark },
+      { label: "အတည်ပြု", bg: C.redLight, color: C.red },
+      { label: "ဘေးအန္တရာယ်", bg: C.blueLight, color: C.blue },
     ],
-    helpful: 15,
+    alertText: "ညောင်ဦး ပဲတောင်သူ ၃၄၀ ဦးကို သတိပေးချက် ပေးပို့ပြီး",
+    helpful: 48,
+    leftBorderColor: C.red,
   },
   {
-    id: "7",
+    id: "d2",
+    avatarText: "ဒလ",
+    avatarColor: C.purpleLight,
+    avatarTextColor: C.purple,
+    authorName: "ဒေါ်လင်းဇာနီ",
+    authorBadge: "ဦးစီးဌာန",
+    authorBadgeBg: C.purpleLight,
+    authorBadgeColor: C.purple,
+    authorMeta: "စိုက်ပျိုးရေး ဦးစီးဌာန · ၅ နာရီ",
+    body: "မုန်တိုင်းကြောင့် ပျက်စီးသော စပါးခင်းများအတွက် အစိုးရထံမှ လျော်ကြေး လျှောက်ထားနိုင်ပါပြီ။",
+    tags: [
+      { label: "အတည်ပြု", bg: C.redLight, color: C.red },
+      { label: "ဘေးအန္တရာယ်", bg: C.blueLight, color: C.blue },
+    ],
+    helpful: 89,
+  },
+  {
+    id: "d3",
     avatarText: "ဦရ",
     avatarColor: C.amberLight,
     avatarTextColor: C.amberDark,
@@ -163,70 +137,114 @@ const INITIAL_POSTS: FeedPost[] = [
     authorBadgeBg: C.amberLight,
     authorBadgeColor: C.amberDark,
     authorMeta: "ညောင်ဦး · အနောက်ဘက် · ၆ နာရီ",
-    body: "✅ အတွေ့အကြုံ မျှဝေခြင်း — နေမဆေးရည်နဲ့ ပိုးနှိမ်နည်း။ ကျွန်တော် ၃ ရာသီ စမ်းသပ်ထားပြီးသားပါ။ ပိုးကျရောက်မှု ၈၀% လျော့ကျပါတယ်။",
+    body: "ရေကြီးပြီးနောက် ပြန်လည်စိုက်ပျိုးနည်း — ရေဆင်းကောင်းအောင် လုပ်ပါ၊ မြေဩဇာ ထည့်ပါ၊ ၃ ရက်နေပါ",
     tags: [
       { label: "အကြံပြုချက်", bg: C.greenLight, color: C.greenDark },
-      { label: "အတွေ့အကြုံ", bg: C.purpleLight, color: C.purple },
-      { label: "သဘာဝ", bg: C.greenLight, color: C.greenDark },
+      { label: "ဘေးအန္တရာယ်", bg: C.blueLight, color: C.blue },
     ],
     helpful: 124,
-    aiChip: {
-      label: "Knowledge Record",
-      text: "ဤအကြံပြုချက်ကို တောင်သူ ၁၂၄ ဦး အသုံးဝင်ဆုံးပေးပြီး ဗဟုသုတ Pool တွင် သိမ်းဆည်းလိုက်ပြီ",
-      conf: "Community Verified",
-    },
   },
   {
-    id: "8",
-    avatarText: "AI",
-    avatarColor: C.primaryLight,
-    avatarTextColor: C.primaryDark,
-    authorName: "AgriShield AI",
-    authorBadge: "Auto Digest",
-    authorBadgeBg: C.primaryLight,
-    authorBadgeColor: C.primaryDark,
-    authorMeta: "ဒေသ ဗဟုသုတ အချုပ် · နေ့စဉ် ည ၉ နာရီ",
-    body: "📊 ညောင်ဦး · ယနေ့ ဗဟုသုတ အချုပ်\n\n✅ ရေကြီးမှု အတည်ပြုချက် ၃ ဦး\n✅ မေးခွန်း ၅ ခု AI ဖြေကြားပြီး\n✅ ဗဟုသုတ Record ၃ ခု ထပ်တိုး\n✅ ပိုးမွှား သတိပေးချက် ၂ ခု ထုတ်ပြန်",
-    tags: [
-      { label: "AI Digest", bg: C.purpleLight, color: C.purple },
-      { label: "နေ့စဉ်အချုပ်", bg: C.primaryLight, color: C.primaryDark },
-    ],
-    helpful: 47,
-    loopBar: "ဤ Digest သည် ဗဟုသုတ Pool မှ auto-generate ဖြစ်သည် · Model တွင် ထည့်သွင်းပြီ",
-  },
-  {
-    id: "9",
-    avatarText: "ဒေါ်",
+    id: "s1",
+    avatarText: "ဒေါ်မြ",
     avatarColor: C.amberLight,
     avatarTextColor: C.amberDark,
-    authorName: "ဒေါ်ကြည်ကြည်",
+    authorName: "ဒေါ်မြမြ",
     authorBadge: "တောင်သူ",
     authorBadgeBg: C.greenLight,
     authorBadgeColor: C.greenDark,
-    authorMeta: "ညောင်ဦး · မြောက်ဘက် · ၈ နာရီ",
-    body: "မနက်ဖြန် မိုးရွာမလားခင်ဗျာ။ စိုက်ခါစပါးခင်းရှိလို့ စိုးရိမ်နေမိလို့ပါ။",
-    tags: [
-      { label: "မေးခွန်း", bg: C.amberLight, color: C.amberDeep },
-      { label: "ရာသီဥတု", bg: C.blueLight, color: C.blue },
-    ],
-    helpful: 5,
-  },
-  {
-    id: "10",
-    avatarText: "ဦထွန်း",
-    avatarColor: C.amberLight,
-    avatarTextColor: C.amberDark,
-    authorName: "ဦးထွန်းအောင်",
-    authorBadge: "တောင်သူ · ၁၀ ရာသီ",
-    authorBadgeBg: C.amberLight,
-    authorBadgeColor: C.amberDark,
-    authorMeta: "ညောင်ဦး · အရှေ့ဘက် · ၁၀ နာရီ",
-    body: "မျိုးကောင်းမျိုးသန့် ဝယ်ချင်လို့ပါ။ ညောင်ဦးမှာ ဘယ်မှာဝယ်ရမလဲ? ပဲမျိုး စစ်စစ် လိုချင်ပါတယ်။",
+    authorMeta: "ညောင်ဦး · အရှေ့ဘက် · ၇ နာရီ",
+    body: "မျိုးစေ့ဝယ်ဖို့ အကြံဉာဏ်လိုပါတယ်။ ညောင်ဦးမှာ ဘယ်ဆိုင်က ဝယ်ရင် အကောင်းဆုံးလဲခင်ဗျာ?",
     tags: [
       { label: "မေးခွန်း", bg: C.amberLight, color: C.amberDeep },
       { label: "မျိုးစေ့", bg: C.surface, color: "#5F5E5A" },
     ],
-    helpful: 18,
+    helpful: 15,
+  },
+  {
+    id: "s2",
+    avatarText: "ဦကျော်",
+    avatarColor: C.amberLight,
+    avatarTextColor: C.amberDark,
+    authorName: "ဦးကျော်စွာ",
+    authorBadge: "တောင်သူ · ၁၂ ရာသီ",
+    authorBadgeBg: C.amberLight,
+    authorBadgeColor: C.amberDark,
+    authorMeta: "ညောင်ဦး · မြောက်ဘက် · ၈ နာရီ",
+    body: "ပဲမျိုးစေ့ ရွေးချယ်နည်း — အစေ့အိမ်၍ အလေးချိန်ရှိ၊ အရောင်ညီ၊ ပျက်စီးမှုကင်းသော မျိုးစေ့ကို ရွေးပါ",
+    tags: [
+      { label: "အကြံပြုချက်", bg: C.greenLight, color: C.greenDark },
+      { label: "မျိုးစေ့", bg: C.surface, color: "#5F5E5A" },
+    ],
+    helpful: 42,
+  },
+  {
+    id: "s3",
+    avatarText: "ဒေါ်နှင်း",
+    avatarColor: C.amberLight,
+    avatarTextColor: C.amberDark,
+    authorName: "ဒေါ်နှင်းဝါ",
+    authorBadge: "တောင်သူ",
+    authorBadgeBg: C.greenLight,
+    authorBadgeColor: C.greenDark,
+    authorMeta: "ညောင်ဦး · တောင်ဘက် · ၉ နာရီ",
+    body: "မျိုးစေ့ သိုလှောင်နည်း — လေဝင်လေထွက်ကောင်းသော အိတ်ဖြင့် ထည့်ပါ၊ ခြောက်သွေ့သော နေရာတွင်ထားပါ",
+    tags: [
+      { label: "အကြံပြုချက်", bg: C.greenLight, color: C.greenDark },
+      { label: "မျိုးစေ့", bg: C.surface, color: "#5F5E5A" },
+    ],
+    helpful: 31,
+  },
+  {
+    id: "o1",
+    avatarText: "ဦတင်",
+    avatarColor: C.amberLight,
+    avatarTextColor: C.amberDark,
+    authorName: "ဦးတင်ဦး",
+    authorBadge: "တောင်သူ · ၁၀ ရာသီ",
+    authorBadgeBg: C.amberLight,
+    authorBadgeColor: C.amberDark,
+    authorMeta: "ညောင်ဦး · တောင်ဘက် · ၁၀ နာရီ",
+    body: "မြေဆီလွှာ ကောင်းမွန်စေဖို့ ဘယ်လို ဂရုစိုက်ရမလဲ? သဘာဝ နည်းလမ်းတွေ သိချင်ပါတယ်။",
+    tags: [
+      { label: "မေးခွန်း", bg: C.amberLight, color: C.amberDeep },
+      { label: "မြေဆီလွှာ", bg: C.amberLight, color: C.amberDark },
+    ],
+    helpful: 22,
+  },
+  {
+    id: "o2",
+    avatarText: "ဒေါ်ယု",
+    avatarColor: C.amberLight,
+    avatarTextColor: C.amberDark,
+    authorName: "ဒေါ်ယုယု",
+    authorBadge: "တောင်သူ · ၆ ရာသီ",
+    authorBadgeBg: C.amberLight,
+    authorBadgeColor: C.amberDark,
+    authorMeta: "ညောင်ဦး · အရှေ့ဘက် · ၁၁ နာရီ",
+    body: "သဘာဝ မြေဩဇာ ပြုလုပ်နည်း — စွန့်ပစ်အော်ဂဲနစ်များကို မြေတွင်မြှုပ်ထားပါ၊ ၃ လကြာလျှင် အသုံးပြုနိုင်ပါပြီ",
+    tags: [
+      { label: "အကြံပြုချက်", bg: C.greenLight, color: C.greenDark },
+      { label: "မြေဆီလွှာ", bg: C.amberLight, color: C.amberDark },
+    ],
+    helpful: 56,
+  },
+  {
+    id: "o3",
+    avatarText: "ဦလှ",
+    avatarColor: C.amberLight,
+    avatarTextColor: C.amberDark,
+    authorName: "ဦးလှမောင်",
+    authorBadge: "တောင်သူ",
+    authorBadgeBg: C.greenLight,
+    authorBadgeColor: C.greenDark,
+    authorMeta: "ညောင်ဦး · အနောက်ဘက် · ၁၂ နာရီ",
+    body: "မြေဩဇာ စစ်ဆေးနည်း — မြေအရောင်၊ မြေသား၊ ရေဆင်းကောင်းမှုကို ကြည့်ပါ၊ ဓာတ်ခွဲစစ်ဆေးမှု အကောင်းဆုံးပါ",
+    tags: [
+      { label: "အကြံပြုချက်", bg: C.greenLight, color: C.greenDark },
+      { label: "မြေဆီလွှာ", bg: C.amberLight, color: C.amberDark },
+    ],
+    helpful: 38,
   },
 ];
 
@@ -309,15 +327,17 @@ function PestResult({ onDismiss }: PestResultProps) {
 interface ComposeModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (post: Omit<FeedPost, "id" | "avatarText" | "avatarColor" | "avatarTextColor">) => void;
+  onSubmit: (post: Omit<FeedPost, "id" | "avatarText" | "avatarColor" | "avatarTextColor">) => FeedPost | void;
+  onAddAiReply: (postId: string, aiResponse: { answer: string; confidence: number; sources: number }) => void;
 }
 
-function ComposeModal({ visible, onClose, onSubmit }: ComposeModalProps) {
+function ComposeModal({ visible, onClose, onSubmit, onAddAiReply }: ComposeModalProps) {
   const [postType, setPostType] = useState<PostTypeFilter>("question");
   const [category, setCategory] = useState<PostType>("fertilizer");
   const [text, setText] = useState("");
   const [autoTags, setAutoTags] = useState<{ label: string; bg: string; color: string }[]>([]);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const simulateAutoTag = (inputText: string) => {
     const tags: { label: string; bg: string; color: string }[] = [];
@@ -345,11 +365,13 @@ function ComposeModal({ visible, onClose, onSubmit }: ComposeModalProps) {
     setAutoTags(tags);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (text.trim().length < 5) {
       Alert.alert("စာသား အလွန်တိုသည်", "အနည်းဆုံး စာလုံး ၅ လုံး ရိုက်ထည့်ပါ");
       return;
     }
+
+    setIsSubmitting(true);
 
     const tags: { label: string; bg: string; color: string }[] = [];
 
@@ -373,7 +395,7 @@ function ComposeModal({ visible, onClose, onSubmit }: ComposeModalProps) {
       tags.push(...autoTags);
     }
 
-    onSubmit({
+    const newPost = {
       authorName: "ကျွန်တော်",
       authorBadge: "တောင်သူ",
       authorBadgeBg: C.greenLight,
@@ -382,13 +404,41 @@ function ComposeModal({ visible, onClose, onSubmit }: ComposeModalProps) {
       body: text,
       tags,
       alertText: postType === "report" ? "ညောင်ဦး တောင်သူများကို သတိပေးချက် ပေးပို့မည်" : undefined,
-    });
+    };
 
-    setText("");
-    setAutoTags([]);
-    setPostType("question");
-    setCategory("fertilizer");
-    onClose();
+    // Submit user post first
+    const submittedPost = onSubmit(newPost);
+
+    // Query Vertex AI RAG for response (in background)
+    try {
+      const ragQuery: RagQuery = {
+        text: text,
+        category: category as any,
+        postType: postType as any,
+      };
+
+      const aiResponse = await queryRagCorpus(ragQuery);
+
+      // Add AI reply to the post (nested comment style)
+      if (submittedPost?.id) {
+        onAddAiReply(submittedPost.id, {
+          answer: aiResponse.answer,
+          confidence: aiResponse.confidence,
+          sources: aiResponse.sources?.length || 0,
+        });
+      }
+    } catch (error) {
+      console.error('AI response error:', error);
+      // Fallback AI response will be added by parent component
+    } finally {
+      setIsSubmitting(false);
+      setText("");
+      setAutoTags([]);
+      setPostType("question");
+      setCategory("fertilizer");
+      setSelectedImages([]);
+      onClose();
+    }
   };
 
   return (
@@ -523,12 +573,18 @@ function ComposeModal({ visible, onClose, onSubmit }: ComposeModalProps) {
               </TouchableOpacity>
             </View>
             <TouchableOpacity
-              style={[styles.submitBtnFull, text.length < 5 && { opacity: 0.5 }]}
+              style={[styles.submitBtnFull, (text.length < 5 || isSubmitting) && { opacity: 0.5 }]}
               onPress={handleSubmit}
-              disabled={text.length < 5}
+              disabled={text.length < 5 || isSubmitting}
             >
-              <Text style={styles.submitTextFull}>တင်မည်</Text>
-              <Feather name="send" size={18} color="#fff" />
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.submitTextFull}>တင်မည်</Text>
+                  <Feather name="send" size={18} color="#fff" />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -538,7 +594,7 @@ function ComposeModal({ visible, onClose, onSubmit }: ComposeModalProps) {
 }
 
 export default function KnowledgeScreen() {
-  const [activeFilter, setActiveFilter] = useState<PostType>("pest");
+  const [activeFilter, setActiveFilter] = useState<PostType>("fertilizer");
   const [postTypeFilter, setPostTypeFilter] = useState<PostTypeFilter>("all-types");
   const [showPestResult, setShowPestResult] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
@@ -557,33 +613,35 @@ export default function KnowledgeScreen() {
 
     // Apply BOTH filters together - posts must match BOTH criteria
     result = result.filter((post) => {
-      const firstTag = post.tags[0]?.label.toLowerCase() || "";
-      const allTags = post.tags.map((t) => t.label.toLowerCase());
-      const body = post.body.toLowerCase();
-      const postTitle = post.body.split("\n")[0].toLowerCase();
+      const allTags = post.tags.map((t) => t.label);
+      const body = post.body;
 
-      // Check category filter (pest/fertilizer/disaster/seed/soil)
+      // Check category filter - look for matching keywords in tags and body
       let matchesCategory = false;
       switch (activeFilter) {
-        case "pest":
-          matchesCategory = allTags.some((t) => t.includes("ပိုး") || t.includes("pest")) ||
-                           body.includes("ပိုး") || body.includes("မွှား");
-          break;
         case "fertilizer":
-          matchesCategory = allTags.some((t) => t.includes("ဩဇာ") || t.includes("မြေဩဇာ")) ||
-                           body.includes("ဩဇာ") || body.includes("ဓာတ်မြေ");
+          // Check for fertilizer-related keywords
+          matchesCategory = allTags.some((t) =>
+            t.includes("ဩဇာ") || t.includes("မြေဩဇာ") || t.includes("ဓာတ်မြေ")
+          ) || body.includes("ဩဇာ") || body.includes("ဓာတ်မြေ");
           break;
         case "disaster":
-          matchesCategory = allTags.some((t) => t.includes("ရေ") || t.includes("မီး") || t.includes("ဘေး")) ||
-                           body.includes("ရေကြီး") || body.includes("မီး") || body.includes("⚠️");
+          // Check for disaster-related keywords
+          matchesCategory = allTags.some((t) =>
+            t.includes("ရေ") || t.includes("မီး") || t.includes("ဘေး") || t.includes("ကြီး")
+          ) || body.includes("ရေကြီး") || body.includes("မီး") || body.includes("ဘေး") || body.includes("⚠️");
           break;
         case "seed":
-          matchesCategory = allTags.some((t) => t.includes("မျိုး") || t.includes("seed")) ||
-                           body.includes("မျိုး") || body.includes("မျိုးစေ့");
+          // Check for seed-related keywords
+          matchesCategory = allTags.some((t) =>
+            t.includes("မျိုးစေ့") || t.includes("မျိုး")
+          ) || body.includes("မျိုးစေ့") || (body.includes("မျိုး") && !body.includes("မျိုးကောင်း"));
           break;
         case "soil":
-          matchesCategory = allTags.some((t) => t.includes("မြေ") || t.includes("soil")) ||
-                           body.includes("မြေ") || body.includes("မြေဆီ");
+          // Check for soil-related keywords
+          matchesCategory = allTags.some((t) =>
+            t.includes("မြေ") || t.includes("မြေဆီ")
+          ) || body.includes("မြေဆီ") || body.includes("မြေဩဇာ");
           break;
         default:
           matchesCategory = true;
@@ -592,19 +650,18 @@ export default function KnowledgeScreen() {
       // Check post type filter (report/question/tip)
       let matchesType = true;
       if (postTypeFilter !== "all-types") {
+        const firstTag = allTags[0] || "";
         switch (postTypeFilter) {
           case "report":
             matchesType = firstTag.includes("အတည်ပြု") || firstTag.includes("သတိပေး") ||
-                         body.includes("⚠️") || post.alertText !== undefined ||
-                         firstTag.includes("ပိုးမွှား");
+                         body.includes("⚠️") || post.alertText !== undefined;
             break;
           case "question":
-            matchesType = firstTag.includes("မေး") || firstTag.includes("မေးခွန်း") ||
-                         body.includes("လဲ") || body.includes("နည်း") || body.includes("?");
+            matchesType = firstTag.includes("မေး") || body.includes("လဲ") || body.includes("နည်း") || body.includes("?");
             break;
           case "tip":
             matchesType = firstTag.includes("အကြံ") || firstTag.includes("အတွေ့အကြုံ") ||
-                         firstTag.includes("Tip") || body.includes("နည်းလမ်း") || body.includes("✅");
+                         body.includes("နည်းလမ်း") || body.includes("✅");
             break;
           default:
             matchesType = true;
@@ -653,41 +710,72 @@ export default function KnowledgeScreen() {
     };
 
     setPosts([newPost, ...posts]);
+    // AI response will be added as aiReply when received from API
+    return newPost; // Return the post so ComposeModal can reference it
+  };
 
-    // Simulate AI response after 2 seconds
-    setTimeout(() => {
-      const aiResponse: FeedPost = {
-        id: `ai-${Date.now()}`,
-        avatarText: "AI",
-        avatarColor: C.primaryLight,
-        avatarTextColor: C.primaryDark,
-        authorName: "AgriShield AI",
-        authorBadge: "Auto Answer",
-        authorBadgeBg: C.primaryLight,
-        authorBadgeColor: C.primaryDark,
-        authorMeta: "AI · ချက်ချင်း",
-        body: `မင်္ဂလာပါ။ ${newPostData.body.substring(0, 30)}... အတွက် ကူညီဖြေကြားပေးမည်။
+  /**
+   * Add AI reply to an existing post as a comment
+   */
+  const handleAddAiReply = (postId: string, aiResponse: {
+    answer: string;
+    confidence: number;
+    sources: number;
+  }) => {
+    const aiComment: Comment = {
+      id: `ai-${Date.now()}`,
+      authorName: "AgriShield AI",
+      authorBadge: "Vertex RAG",
+      authorBadgeBg: C.primaryLight,
+      authorBadgeColor: C.primaryDark,
+      avatarText: "AI",
+      avatarColor: C.primaryLight,
+      avatarTextColor: C.primaryDark,
+      body: aiResponse.answer,
+      timestamp: "AI အဖြေ",
+      isAI: true,
+      confidence: aiResponse.confidence,
+      sources: aiResponse.sources,
+    };
 
-ယုံကြည်မှု 72% ဖြင့် အောက်ပါအတိုင်း ကြံပြုအပ်ပါသည် -
-1. နေမဆေးရည် ဖျန်းဖြန်းခြင်း
-2. ရေဆည်ထားခြင်း
-3. ၃ ရက်အကြာ ပြန်စစ်ခြင်း
-
-ကျွမ်းကျင်သူများကိုလည်း အသိပေးပြီးပါပြီ။`,
-        tags: [{ label: "AI အဖြေ", bg: C.primaryLight, color: C.primaryDark }],
-        aiChip: {
-          label: "AI Confidence",
-          text: "ဤအကြံပြုချက်သည် ရာသီဥတု ဒေတာနှင့် ကိုက်ညီသည်",
-          conf: "ယုံကြည်မှု 72%",
-        },
-      };
-      setPosts((prev) => prev.map((p) => p.id === newPost.id ? { ...p, aiChip: aiResponse.aiChip } : p));
-      setPosts((prev) => [aiResponse, ...prev]);
-    }, 2000);
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, comments: [...(p.comments || []), aiComment] }
+          : p
+      )
+    );
   };
 
   const handleHelpful = (postId: string) => {
     setPosts(posts.map((p) => p.id === postId ? { ...p, helpful: (p.helpful || 0) + 1 } : p));
+  };
+
+  const handleAddComment = (postId: string, commentText: string) => {
+    const newComment: Comment = {
+      id: `comment-${Date.now()}`,
+      authorName: "ကျွန်တော်",
+      authorBadge: "တောင်သူ",
+      authorBadgeBg: C.greenLight,
+      authorBadgeColor: C.greenDark,
+      avatarText: "ကျ",
+      avatarColor: C.amberLight,
+      avatarTextColor: C.amberDark,
+      body: commentText,
+      timestamp: "ယခု",
+    };
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, comments: [...(p.comments || []), newComment] }
+          : p
+      )
+    );
+  };
+
+  const handleShare = (postId: string) => {
+    Alert.alert("မျှဝေမည်", "ဤပို့စ်ကို မျှဝေရန် အတွက် မကြာမီ ထပ်မံထည့်သွင်းမည်");
   };
 
   const sortOptions: { key: SortType; label: string; desc: string; badge: string; badgeColor: string }[] = [
@@ -814,6 +902,8 @@ export default function KnowledgeScreen() {
               key={post.id}
               post={post}
               onHelpful={() => handleHelpful(post.id)}
+              onComment={(text) => handleAddComment(post.id, text)}
+              onShare={() => handleShare(post.id)}
             />
           ))
         ) : (
@@ -844,6 +934,7 @@ export default function KnowledgeScreen() {
         visible={showCompose}
         onClose={() => setShowCompose(false)}
         onSubmit={handleNewPost}
+        onAddAiReply={handleAddAiReply}
       />
 
       {showPestResult && <PestResult onDismiss={() => setShowPestResult(false)} />}

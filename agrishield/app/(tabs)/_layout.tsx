@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, useColorScheme } from "react-native";
 import Colors from "@/constants/colors";
 
 const C = Colors.light;
@@ -14,7 +14,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: C.primary,
-        tabBarInactiveTintColor: "#ccc",
+        tabBarInactiveTintColor: "#999",
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
@@ -22,10 +22,14 @@ export default function TabLayout() {
           borderTopWidth: 0.5,
           borderTopColor: C.border,
           elevation: 0,
+          paddingBottom: Platform.OS === "ios" ? 20 : 8,
+          paddingTop: 8,
+          height: Platform.OS === "ios" ? 85 : 65,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: "600",
+          marginTop: 4,
         },
       }}
     >
@@ -59,7 +63,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="knowledge"
         options={{
-          title: "ဗဟုသုတ",
+          title: "အသိုင်းအဝိုင်း",
           tabBarIcon: ({ color }) => (
             <Feather name="users" size={22} color={color} />
           ),
@@ -68,10 +72,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "ကျွန်တော်",
+          title: "ပရိုဖိုင်း",
           tabBarIcon: ({ color }) => (
             <Feather name="user" size={22} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="kyc"
+        options={{
+          href: null,
+          title: "KYC",
         }}
       />
     </Tabs>
