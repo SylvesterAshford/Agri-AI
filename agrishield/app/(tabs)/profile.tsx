@@ -36,9 +36,11 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const tier = getUserTier(user.score);
-  const tierConfig = TIER_CONFIG[tier];
-  const maxLoan = getMaxLoanAmount(user.score);
+  // Only calculate tier/maxLoan for farmers and experts (who have credit scores)
+  const isFarmerOrExpert = user.role === 'farmer' || user.role === 'expert';
+  const tier = isFarmerOrExpert ? getUserTier(user.score) : null;
+  const tierConfig = tier ? TIER_CONFIG[tier] : null;
+  const maxLoan = isFarmerOrExpert ? getMaxLoanAmount(user.score) : 0;
 
   // Get role badge
   const getRoleBadge = () => {
@@ -108,69 +110,73 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Score and Tier Card */}
-      <View style={styles.scoreCard}>
-        <View style={styles.scoreHeader}>
-          <Text style={styles.scoreLabel}>Credit Score</Text>
-          <View style={[styles.tierBadge, { backgroundColor: tier === 'gold' || tier === 'platinum' ? C.amberLight : C.surface }]}>
-            <Text style={[styles.tierText, { color: tier === 'gold' || tier === 'platinum' ? C.amberDark : C.textSecondary }]}>
-              {tierConfig.label} Tier
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.scoreValue}>{user.score}</Text>
-        <View style={styles.scoreTrack}>
-          <View
-            style={[
-              styles.scoreFill,
-              {
-                width: `${(user.score / 1000) * 100}%`,
-                backgroundColor: user.score >= 300 ? C.amber : C.textSecondary,
-              },
-            ]}
-          />
-        </View>
-        <View style={styles.scoreRange}>
-          <Text style={styles.scoreRangeText}>0</Text>
-          <Text style={styles.scoreRangeText}>1000</Text>
-        </View>
-
-        {/* Requirements */}
-        {user.score < 300 && user.role === 'farmer' && (
-          <View style={styles.requirementsCard}>
-            <Text style={styles.requirementsTitle}>Expert အတွက် လိုအပ်ချက်များ:</Text>
-            <View style={styles.requirementItem}>
-              <Feather name={user.score >= 0 ? "check-circle" : "circle"} size={14} color={C.greenDark} />
-              <Text style={styles.requirementText}>Score ≥ 300 points</Text>
-            </View>
-            <View style={styles.requirementItem}>
-              <Feather name={user.kycStatus === 'approved' ? "check-circle" : "circle"} size={14} color={C.greenDark} />
-              <Text style={styles.requirementText}>KYC Approved</Text>
+      {/* Score and Tier Card (Only for Farmers and Experts) */}
+      {(user.role === 'farmer' || user.role === 'expert') && (
+        <View style={styles.scoreCard}>
+          <View style={styles.scoreHeader}>
+            <Text style={styles.scoreLabel}>Credit Score</Text>
+            <View style={[styles.tierBadge, { backgroundColor: tier === 'gold' || tier === 'platinum' ? C.amberLight : C.surface }]}>
+              <Text style={[styles.tierText, { color: tier === 'gold' || tier === 'platinum' ? C.amberDark : C.textSecondary }]}>
+                {tierConfig.label} Tier
+              </Text>
             </View>
           </View>
-        )}
-      </View>
 
-      {/* Stats Grid */}
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{user.score}</Text>
-          <Text style={styles.statLabel}>Credit Score</Text>
+          <Text style={styles.scoreValue}>{user.score}</Text>
+          <View style={styles.scoreTrack}>
+            <View
+              style={[
+                styles.scoreFill,
+                {
+                  width: `${(user.score / 1000) * 100}%`,
+                  backgroundColor: user.score >= 300 ? C.amber : C.textSecondary,
+                },
+              ]}
+            />
+          </View>
+          <View style={styles.scoreRange}>
+            <Text style={styles.scoreRangeText}>0</Text>
+            <Text style={styles.scoreRangeText}>1000</Text>
+          </View>
+
+          {/* Requirements */}
+          {user.score < 300 && user.role === 'farmer' && (
+            <View style={styles.requirementsCard}>
+              <Text style={styles.requirementsTitle}>Expert အတွက် လိုအပ်ချက်များ:</Text>
+              <View style={styles.requirementItem}>
+                <Feather name={user.score >= 0 ? "check-circle" : "circle"} size={14} color={C.greenDark} />
+                <Text style={styles.requirementText}>Score ≥ 300 points</Text>
+              </View>
+              <View style={styles.requirementItem}>
+                <Feather name={user.kycStatus === 'approved' ? "check-circle" : "circle"} size={14} color={C.greenDark} />
+                <Text style={styles.requirementText}>KYC Approved</Text>
+              </View>
+            </View>
+          )}
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{(maxLoan / 1000).toFixed(0)}K</Text>
-          <Text style={styles.statLabel}>Max Loan</Text>
+      )}
+
+      {/* Stats Grid (Only for Farmers and Experts) */}
+      {(user.role === 'farmer' || user.role === 'expert') && (
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{user.score}</Text>
+            <Text style={styles.statLabel}>Credit Score</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{(maxLoan / 1000).toFixed(0)}K</Text>
+            <Text style={styles.statLabel}>Max Loan</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{tierConfig.label}</Text>
+            <Text style={styles.statLabel}>Tier</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{user.kycStatus === 'approved' ? '✓' : '○'}</Text>
+            <Text style={styles.statLabel}>KYC</Text>
+          </View>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{tierConfig.label}</Text>
-          <Text style={styles.statLabel}>Tier</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{user.kycStatus === 'approved' ? '✓' : '○'}</Text>
-          <Text style={styles.statLabel}>KYC</Text>
-        </View>
-      </View>
+      )}
 
       {/* KYC Action Button (Only for Farmers and Experts) */}
       {(user.role === 'farmer' || user.role === 'expert') && (

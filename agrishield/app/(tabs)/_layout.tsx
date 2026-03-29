@@ -85,6 +85,13 @@ export default function TabLayout() {
           title: "KYC",
         }}
       />
+      <Tabs.Screen
+        name="verify-kyc"
+        options={{
+          href: null,
+          title: "Verify KYC",
+        }}
+      />
     </Tabs>
   );
 }

@@ -110,7 +110,7 @@ export default function HomeScreen() {
           <View style={styles.roleCard}>
             {isValidatorUser && (
               <>
-                <TouchableOpacity style={styles.roleAction} onPress={handleKYCVerification}>
+                <TouchableOpacity style={styles.roleAction} onPress={() => router.push('/(tabs)/verify-kyc')}>
                   <View style={[styles.roleIcon, { backgroundColor: C.blueLight }]}>
                     <Feather name="check-square" size={22} color={C.blue} />
                   </View>
@@ -123,7 +123,7 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.roleAction}>
+                <TouchableOpacity style={styles.roleAction} onPress={() => router.push('/(tabs)/verify-kyc')}>
                   <View style={[styles.roleIcon, { backgroundColor: C.greenLight }]}>
                     <Feather name="file-text" size={22} color={C.greenDark} />
                   </View>
