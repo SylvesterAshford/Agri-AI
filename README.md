@@ -8,6 +8,50 @@ AgriShield is a mobile-first app built with React Native and Expo that delivers 
 ![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)
 ![Platform](https://img.shields.io/badge/Platform-iOS_|_Android_|_Web-green)
+![Hackathon](https://img.shields.io/badge/AI_for_Climate--Resilient_Hackathon-2026-00C176?logo=leaflet)
+![Organizer](https://img.shields.io/badge/Organized_by-UNDP_%7C_Frontier_Tech_Leaders-0068FF?logo=un)
+
+---
+
+## 🏆 Project Overview
+
+### About the Hackathon
+
+AgriShield was built for the **AI for Climate-Resilient Hackathon 2026**, organized by **Frontier Tech Leaders** in partnership with **UNDP**, the **SDG AI Lab**, and **ICPSD** — held across **Yangon & Mandalay on 28 March 2026**.
+
+The hackathon challenged multidisciplinary teams to co-create practical, scalable, and locally relevant AI solutions that empower farmers and agri-related small businesses in Myanmar to become more productive, climate-resilient, and digitally included.
+
+---
+
+### 📋 Problem Statement
+
+![AI for Climate-Resilient Hackathon 2026 — Problem Statement](./Project_pic.png)
+
+> *"Farmers and agri-related small businesses in Myanmar continue to face daily operational challenges that directly affect their productivity and income. These include unpredictable weather patterns, fluctuating market prices, limited access to reliable advisory services, and lack of timely, data-driven insights. Most decision-making remains reactive rather than informed by predictive or analytical tools.*
+>
+> *While digital technologies and AI have the potential to address many of these challenges, existing solutions are often inaccessible, not user-centric, or not designed for low-connectivity rural environments. In addition, limited attention to data privacy and responsible AI practices can create risks for users and reduce trust in digital systems.*
+>
+> *There is a need to develop practical, scalable, and locally relevant solutions that combine technology with real user needs. Encouraging multidisciplinary teams to co-create such solutions can help bridge this gap and accelerate the development of inclusive and climate-resilient agri-tech innovations."*
+>
+> — **Frontier Tech Leaders / UNDP, AI for Climate-Resilient Hackathon 2026**
+
+---
+
+### 💡 Our Solution
+
+AgriShield directly addresses every dimension of the problem statement:
+
+| Challenge | AgriShield's Response |
+|---|---|
+| 🌦️ **Unpredictable weather patterns** | 14-day AI-powered flood, drought & pest risk forecasts with action plans |
+| 📈 **Fluctuating market prices** | Real-time multi-city price comparison, 10-day forecasts & breakeven calculator |
+| 📡 **Limited advisory access** | Peer-to-expert Q&A feed with AI answer verification & pest ID via camera |
+| 📊 **Reactive decision-making** | Predictive risk scores & data-driven alerts pushed proactively to farmers |
+| 🌐 **Low-connectivity rural environments** | Offline-first architecture; works on entry-level Android devices with minimal data |
+| 🔒 **Data privacy & responsible AI** | On-device processing where possible; transparent AI confidence scores shown to users |
+| 🗣️ **Inaccessible / non-user-centric UX** | Fully localized in **Burmese (Myanmar Unicode)**; designed with and for smallholder farmers |
+
+AgriShield is not a generic agricultural app — it is purpose-built for Myanmar's Dry Zone context, grounded in real farmer needs, and designed to be trusted, usable, and impactful from day one.
 
 ---
 
